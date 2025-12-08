@@ -21,15 +21,13 @@ app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
-// Routes (We will create these next)
+// Routes
 app.use('/api/complaints', require('./routes/complaintRoutes'));
-// app.use('/api/users', require('./routes/userRoutes')); 
-const emptyRoute = (req, res) => res.json([]); 
-app.get('/api/users', emptyRoute);
-app.get('/api/service-requests', emptyRoute);
-app.get('/api/leave-requests', emptyRoute);
-app.get('/api/payments', emptyRoute);
-app.get('/api/announcements', emptyRoute);
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/service-requests', require('./routes/serviceRequestRoutes'));
+app.use('/api/leave-requests', require('./routes/leaveRequestRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/announcements', require('./routes/announcementRoutes'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

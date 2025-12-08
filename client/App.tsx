@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // <--- 1. Add useEffect
 import { Header } from './components/Header';
 import { LoginCard } from './components/LoginCard';
 import { FeatureCard } from './components/FeatureCard';
@@ -11,7 +11,16 @@ import { User, ShieldCheck, LayoutDashboard, Zap, Server } from 'lucide-react';
 type ViewState = 'landing' | 'user-login' | 'admin-login' | 'user-dashboard' | 'admin-dashboard';
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewState>('landing');
+  // 2. Initialize state by checking localStorage first
+  const [currentView, setCurrentView] = useState<ViewState>(() => {
+    const savedView = localStorage.getItem('appView');
+    return (savedView as ViewState) || 'landing';
+  });
+
+  // 3. Save to localStorage whenever currentView changes
+  useEffect(() => {
+    localStorage.setItem('appView', currentView);
+  }, [currentView]);
 
   const handleLoginClick = (role: string) => {
     if (role === 'User') {
@@ -36,15 +45,15 @@ function App() {
   };
 
   const handleLogout = () => {
+    // 4. Clear storage on logout so they don't get stuck
+    localStorage.removeItem('appView');
     setCurrentView('landing');
   };
 
   // User Dashboard View
   if (currentView === 'user-dashboard') {
     return (
-      
         <UserDashboard onLogout={handleLogout} />
-
     );
   }
 
