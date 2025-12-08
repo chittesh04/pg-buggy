@@ -171,11 +171,15 @@ export const ComplaintsTab: React.FC = () => {
               </div>
           ))
         ) : (
-          <div className="text-center py-12 bg-white rounded-xl border border-slate-100 border-dashed">
-            <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search size={24} className="text-slate-400" />
+        <div className="text-center py-12 flex flex-col items-center justify-center">
+            <div className="bg-slate-50 p-4 rounded-full mb-3">
+              <CheckCircle2 size={32} className="text-green-500" />
             </div>
             <p className="text-slate-500">No complaints found</p>
+            <p className="text-slate-500 text-sm max-w-xs mx-auto mb-4">
+              Everything seems to be working fine. Enjoy your stay!
+            </p>
+
           </div>
         )}
       </div>

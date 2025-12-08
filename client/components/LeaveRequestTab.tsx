@@ -141,6 +141,8 @@ export const LeaveRequestTab: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]} // Disable past dates
+
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all"
                     value={newRequest.startDate}
                     onChange={e => setNewRequest({...newRequest, startDate: e.target.value})}
@@ -151,6 +153,8 @@ export const LeaveRequestTab: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min={newRequest.startDate} // End date cannot be before start date
+                    disabled={!newRequest.startDate} // Disable until start date is picked
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all"
                     value={newRequest.endDate}
                     onChange={e => setNewRequest({...newRequest, endDate: e.target.value})}

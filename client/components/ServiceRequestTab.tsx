@@ -53,9 +53,7 @@ export const ServiceRequestTab: React.FC = () => {
     const request: any = {
       serviceType: newRequest.serviceType,
       description: newRequest.description,
-      requestedDate: new Date().toISOString().split('T')[0],
-      studentName: 'John Doe',
-      room: '101'
+      requestedDate: new Date().toISOString().split('T')[0]
     };
     addServiceRequest(request);
     setIsModalOpen(false);
