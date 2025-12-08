@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import axios from 'axios';
 
 // --- Configuration ---
+// Ensure this matches your backend port
 const API_URL = 'http://localhost:5000/api';
 
 // --- Interfaces ---
@@ -11,10 +12,10 @@ export interface User {
   email: string;
   room?: string;
   role: 'Admin' | 'User';
+  contact?: string; // Added contact field
   token?: string;
 }
 
-// ... (Keep your existing interfaces for Complaint, ServiceRequest, etc. here) ...
 export interface Complaint {
   id: string;
   title: string;
@@ -131,6 +132,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const savedUser = localStorage.getItem('user');
     if (token && savedUser) {
       const user = JSON.parse(savedUser);
+      // Ensure the restored user has an ID property
+      if (!user.id && user._id) user.id = user._id;
+      
       setCurrentUser(user);
       setIsAuthenticated(true);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -149,6 +153,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       const { token, user } = res.data;
+      
+      // Normalize user ID immediately
+      if (!user.id && user._id) user.id = user._id;
 
       // Save to storage
       localStorage.setItem('token', token);
@@ -177,17 +184,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setCurrentUser(null);
     setIsAuthenticated(false);
     delete axios.defaults.headers.common['Authorization'];
+    
     // Clear data
+    setUsers([]);
     setComplaints([]);
     setServiceRequests([]);
-    // ... clear others if needed
+    setLeaveRequests([]);
+    setPayments([]);
+    setAnnouncements([]);
+    setRecentActivity([]);
+  };
+
+  // --- Helper: Normalize MongoDB _id to id ---
+  // This is the CRITICAL FIX for dropdowns and updates
+  const normalizeId = (data: any[]) => {
+    return data.map(item => ({
+      ...item,
+      id: item._id || item.id // Use _id if available, fallback to id
+    }));
   };
 
   // --- Data Fetching ---
   const fetchData = async () => {
     try {
-      // We fetch everything, but backend should filter based on user role if we implemented that logic there.
-      // For now, we fetch all and filter in frontend or backend.
       const [usersRes, complaintsRes, serviceRes, leaveRes, paymentsRes, announceRes] = await Promise.all([
         axios.get(`${API_URL}/users`),
         axios.get(`${API_URL}/complaints`),
@@ -197,14 +216,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         axios.get(`${API_URL}/announcements`)
       ]);
 
-      setUsers(usersRes.data);
-      setComplaints(complaintsRes.data);
-      setServiceRequests(serviceRes.data);
-      setLeaveRequests(leaveRes.data);
-      setPayments(paymentsRes.data);
-      setAnnouncements(announceRes.data);
+      // Apply normalization to all fetched data
+      setUsers(normalizeId(usersRes.data));
+      setComplaints(normalizeId(complaintsRes.data));
+      setServiceRequests(normalizeId(serviceRes.data));
+      setLeaveRequests(normalizeId(leaveRes.data));
+      setPayments(normalizeId(paymentsRes.data));
+      setAnnouncements(normalizeId(announceRes.data));
     } catch (error) {
       console.error("Error fetching data:", error);
+      // If unauthorized, logout
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        logout();
+      }
     }
   };
 
@@ -220,7 +244,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setRecentActivity(prev => [newActivity, ...prev]);
   };
 
-  // --- Actions (Updated to use currentUser) ---
+  // --- Actions ---
 
   const addComplaint = async (complaintData: any) => {
     if (!currentUser) return;
@@ -232,7 +256,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     try {
       const res = await axios.post(`${API_URL}/complaints`, dataWithUser);
-      setComplaints(prev => [res.data, ...prev]);
+      // Use _id from response as id
+      const newItem = { ...res.data, id: res.data._id };
+      setComplaints(prev => [newItem, ...prev]);
       addActivity(currentUser.name, `submitted a complaint: ${complaintData.title}`, 'complaint');
     } catch (error) { console.error(error); }
   };
@@ -254,7 +280,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     try {
       const res = await axios.post(`${API_URL}/service-requests`, dataWithUser);
-      setServiceRequests(prev => [res.data, ...prev]);
+      const newItem = { ...res.data, id: res.data._id };
+      setServiceRequests(prev => [newItem, ...prev]);
       addActivity(currentUser.name, `requested service: ${requestData.serviceType}`, 'request');
     } catch (error) { console.error(error); }
   };
@@ -276,7 +303,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     try {
       const res = await axios.post(`${API_URL}/leave-requests`, dataWithUser);
-      setLeaveRequests(prev => [res.data, ...prev]);
+      const newItem = { ...res.data, id: res.data._id };
+      setLeaveRequests(prev => [newItem, ...prev]);
       addActivity(currentUser.name, `requested leave`, 'request');
     } catch (error) { console.error(error); }
   };
@@ -291,7 +319,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addAnnouncement = async (announcementData: any) => {
     try {
       const res = await axios.post(`${API_URL}/announcements`, announcementData);
-      setAnnouncements(prev => [res.data, ...prev]);
+      const newItem = { ...res.data, id: res.data._id };
+      setAnnouncements(prev => [newItem, ...prev]);
       addActivity('Admin', `posted announcement: ${announcementData.title}`, 'other');
     } catch (error) { console.error(error); }
   };
@@ -312,17 +341,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addPayment = async (paymentData: any) => {
-  try {
-    const res = await axios.post(`${API_URL}/payments`, paymentData);
-    setPayments(prev => [...prev, res.data]);
-    
-    // Log activity
-    const studentName = paymentData.studentName || 'All Students';
-    addActivity('Admin', `scheduled fee: ${paymentData.title} for ${studentName}`, 'payment');
-  } catch (error) {
-    console.error("Error creating payment:", error);
-  }
-};
+    try {
+      const res = await axios.post(`${API_URL}/payments`, paymentData);
+      // CRITICAL FIX: Ensure new payment has 'id' property so it works in UI immediately
+      const newItem = { ...res.data, id: res.data._id };
+      setPayments(prev => [...prev, newItem]);
+      
+      const studentName = paymentData.studentName || 'All Students';
+      addActivity('Admin', `scheduled fee: ${paymentData.title} for ${studentName}`, 'payment');
+    } catch (error) {
+      console.error("Error creating payment:", error);
+    }
+  };
 
   const updatePaymentStatus = async (id: string, status: Payment['status']) => {
     try {
@@ -331,19 +361,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) { console.error(error); }
   };
 
-const addUser = async (userData: any) => {
+  const addUser = async (userData: any) => {
     try {
-      // We send the data exactly as the form gives it (including password)
-      // The backend /auth/register route will hash it automatically.
       const res = await axios.post(`${API_URL}/auth/register`, { 
         ...userData, 
-        role: 'User', // Ensure they are created as a User/Student
+        role: 'User', 
         isStudent: true 
       });
       
-      // Add the new user to the local list so the table updates immediately
-      setUsers(prev => [...prev, res.data.user]);
+      const newUser = res.data.user;
+      // CRITICAL FIX: Ensure new user has 'id' property so it works in UI immediately
+      const safeUser = { ...newUser, id: newUser.id || newUser._id };
       
+      setUsers(prev => [...prev, safeUser]);
       addActivity('Admin', `created new user account: ${userData.name}`, 'other');
     } catch (error: any) {
       console.error("Error adding user:", error);
@@ -365,7 +395,7 @@ const addUser = async (userData: any) => {
       addComplaint, updateComplaintStatus,
       addServiceRequest, updateServiceRequestStatus,
       addLeaveRequest, updateLeaveRequestStatus,
-      addAnnouncement, payBill, updatePaymentStatus, addUser, deleteUser,addPayment 
+      addAnnouncement, payBill, updatePaymentStatus, addUser, deleteUser, addPayment 
     }}>
       {children}
     </DataContext.Provider>

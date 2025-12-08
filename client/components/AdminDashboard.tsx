@@ -33,7 +33,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { 
     users, complaints, serviceRequests, leaveRequests, payments, announcements, recentActivity,
     updateComplaintStatus, updateServiceRequestStatus, updateLeaveRequestStatus, updatePaymentStatus,
-    addUser, deleteUser, addAnnouncement,addPayment
+    addUser, deleteUser, addAnnouncement, addPayment
   } = useData();
 
   const menuItems = [
@@ -49,7 +49,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // Helper to calculate time ago
   const timeAgo = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + " years ago";
     interval = seconds / 2592000;
@@ -65,11 +65,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // --- Sub Components ---
 
-const Overview = () => {
+  const Overview = () => {
     const pendingPaymentsTotal = payments.filter(p => p.status === 'Pending' || p.status === 'Overdue').reduce((sum, p) => sum + p.amount, 0);
-    const occupancyRate = Math.round((users.filter(u => u.status === 'Active').length / 50) * 100); // Assuming 50 rooms capacity
+    const occupancyRate = Math.round((users.filter(u => u.role === 'User').length / 50) * 100); // Assuming 50 rooms capacity
 
-    // Added 'target' property to map cards to tabs
     const stats = [
       { title: 'Total Users', target: 'Users', value: users.length, change: '+2', icon: <Users size={20} />, color: 'text-blue-600 bg-blue-100' },
       { title: 'Active Complaints', target: 'Complaints', value: complaints.filter(c => c.status !== 'Resolved').length, change: complaints.filter(c => c.status !== 'Resolved').length > 5 ? '+5' : 'Normal', icon: <FileText size={20} />, color: 'text-red-600 bg-red-100' },
@@ -90,7 +89,7 @@ const Overview = () => {
           {stats.map((stat, index) => (
             <div 
               key={index} 
-              onClick={() => setActiveTab(stat.target)} // <--- Redirects to the specific tab
+              onClick={() => setActiveTab(stat.target)}
               className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:border-purple-200 hover:-translate-y-1 transition-all cursor-pointer group"
             >
               <div className="flex justify-between items-start mb-4">
@@ -145,7 +144,7 @@ const Overview = () => {
                 {urgentIssues.length > 0 ? urgentIssues.map(issue => (
                   <div 
                     key={issue.id} 
-                    onClick={() => setActiveTab('Complaints')} // Clicking an issue goes to Complaints tab
+                    onClick={() => setActiveTab('Complaints')}
                     className="bg-red-50 border border-red-100 p-4 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
                   >
                     <div className="flex justify-between items-start">
@@ -169,19 +168,17 @@ const Overview = () => {
     );
   };
 
-const UsersList = () => {
+  const UsersList = () => {
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-    // Added 'password' to the state
     const [newUser, setNewUser] = useState({ name: '', email: '', password: '', room: '', contact: '' });
     const [searchTerm, setSearchTerm] = useState('');
 
     const handleAddUser = (e: React.FormEvent) => {
         e.preventDefault();
-        // Pass all fields including password to DataContext
         addUser({
             name: newUser.name,
             email: newUser.email,
-            password: newUser.password, // <--- Sending real password
+            password: newUser.password,
             room: newUser.room,
             contact: newUser.contact
         });
@@ -285,12 +282,11 @@ const UsersList = () => {
                             <input required type="email" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
                         </div>
                         
-                        {/* NEW PASSWORD FIELD */}
                         <div>
                             <label className="block text-xs font-medium text-slate-700 mb-1">Set Password</label>
                             <input 
                                 required 
-                                type="text" // Using text so Admin can see what they are typing to tell the student
+                                type="text" 
                                 placeholder="Create a password"
                                 className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
                                 value={newUser.password} 
@@ -468,14 +464,15 @@ const UsersList = () => {
     </div>
   );
 
-const PaymentsList = () => {
+  const PaymentsList = () => {
     // State for the Modal
     const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [newFee, setNewFee] = useState({
       title: '',
       amount: '',
       dueDate: '',
-      studentId: '' // We will store the selected User ID here
+      studentId: '' 
     });
 
     // Get users to populate the dropdown
@@ -483,39 +480,46 @@ const PaymentsList = () => {
 
     const handleScheduleFee = async (e: React.FormEvent) => {
       e.preventDefault();
-      
-      // Logic to handle "All Students" or "Single Student"
-      if (newFee.studentId === 'ALL') {
-        // Create a fee for EVERY student
-        for (const student of students) {
-          await addPayment({ // This calls the function we added to DataContext
-            title: newFee.title,
-            amount: Number(newFee.amount),
-            dueDate: newFee.dueDate,
-            status: 'Pending',
-            student: student.id,
-            studentName: student.name,
-            room: student.room
-          });
-        }
-      } else {
-        // Create fee for SINGLE student
-        const selectedStudent = students.find(s => s.id === newFee.studentId);
-        if (selectedStudent) {
-          await addPayment({
-            title: newFee.title,
-            amount: Number(newFee.amount),
-            dueDate: newFee.dueDate,
-            status: 'Pending',
-            student: selectedStudent.id,
-            studentName: selectedStudent.name,
-            room: selectedStudent.room
-          });
-        }
-      }
+      setIsProcessing(true);
 
-      setIsFeeModalOpen(false);
-      setNewFee({ title: '', amount: '', dueDate: '', studentId: '' });
+      try {
+        if (newFee.studentId === 'ALL') {
+          // Parallel execution for all students
+          const paymentPromises = students.map(student => 
+             addPayment({
+              title: newFee.title,
+              amount: Number(newFee.amount),
+              dueDate: newFee.dueDate,
+              status: 'Pending',
+              student: student.id,
+              studentName: student.name,
+              room: student.room
+            })
+          );
+          await Promise.all(paymentPromises);
+        } else {
+          // Single student
+          const selectedStudent = students.find(s => s.id === newFee.studentId);
+          if (selectedStudent) {
+            await addPayment({
+              title: newFee.title,
+              amount: Number(newFee.amount),
+              dueDate: newFee.dueDate,
+              status: 'Pending',
+              student: selectedStudent.id,
+              studentName: selectedStudent.name,
+              room: selectedStudent.room
+            });
+          }
+        }
+
+        setIsFeeModalOpen(false);
+        setNewFee({ title: '', amount: '', dueDate: '', studentId: '' });
+      } catch (err) {
+        console.error("Error scheduling fees:", err);
+      } finally {
+        setIsProcessing(false);
+      }
     };
 
     return (
@@ -525,7 +529,6 @@ const PaymentsList = () => {
                 <h2 className="text-2xl font-bold text-slate-800">Manage Payments</h2>
                 <p className="text-slate-500 text-sm mt-1">Track fees and schedule new payments</p>
             </div>
-            {/* The New Schedule Button */}
             <button 
               onClick={() => setIsFeeModalOpen(true)} 
               className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
@@ -635,8 +638,12 @@ const PaymentsList = () => {
                             </select>
                         </div>
 
-                        <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2">
-                          Schedule Payment
+                        <button 
+                          type="submit" 
+                          disabled={isProcessing}
+                          className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2 flex justify-center items-center gap-2 disabled:opacity-50"
+                        >
+                          {isProcessing ? 'Processing...' : 'Schedule Payment'}
                         </button>
                     </form>
                 </div>
