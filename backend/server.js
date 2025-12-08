@@ -7,7 +7,12 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  // Allow localhost for testing AND your future frontend domain
+  origin: ["http://localhost:3000", "https://YOUR-VERCEL-PROJECT-NAME.vercel.app"],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // MongoDB Connection

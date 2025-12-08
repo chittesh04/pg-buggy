@@ -2,8 +2,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import axios from 'axios';
 
 // --- Configuration ---
-// Ensure this matches your backend port
-const API_URL = 'http://localhost:5000/api';
+// Allow the environment variable to override localhost
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 
 // --- Interfaces ---
 export interface User {
