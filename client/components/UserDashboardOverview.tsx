@@ -7,10 +7,11 @@ interface UserDashboardOverviewProps {
 }
 
 export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ onNavigate }) => {
-  const { payments, complaints, leaveRequests, announcements, serviceRequests } = useData();
-  const currentUser = { name: 'John Doe', room: '101' };
+  const { payments, complaints, leaveRequests, announcements, serviceRequests, currentUser } = useData();
 
-  // Stats Calculations
+  if (!currentUser) return <div className="p-8 text-center">Loading profile...</div>;
+
+  // Stats Calculations (Filtered by Current User)
   const totalDue = payments
     .filter(p => p.studentName === currentUser.name && p.status !== 'Paid')
     .reduce((sum, p) => sum + p.amount, 0);
@@ -23,35 +24,17 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
 
   const pinnedAnnouncements = announcements.filter(a => a.isPinned).slice(0, 2);
 
-  // Combine recent activities (Complaints + Service Requests + Payments)
+  // Combine recent activities
   const recentActivity = [
     ...complaints
         .filter(c => c.studentName === currentUser.name)
-        .map(c => ({ 
-            id: c.id, 
-            title: c.title, 
-            type: 'Complaint', 
-            date: c.date, 
-            status: c.status 
-        })),
+        .map(c => ({ id: c.id, title: c.title, type: 'Complaint', date: c.date, status: c.status })),
     ...serviceRequests
         .filter(s => s.studentName === currentUser.name)
-        .map(s => ({ 
-            id: s.id, 
-            title: s.serviceType, 
-            type: 'Service', 
-            date: s.requestedDate, 
-            status: s.status 
-        })),
+        .map(s => ({ id: s.id, title: s.serviceType, type: 'Service', date: s.requestedDate, status: s.status })),
     ...payments
         .filter(p => p.studentName === currentUser.name)
-        .map(p => ({
-            id: p.id,
-            title: p.title,
-            type: 'Payment',
-            date: p.paidOn || p.dueDate,
-            status: p.status
-        })),
+        .map(p => ({ id: p.id, title: p.title, type: 'Payment', date: p.paidOn || p.dueDate, status: p.status })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 4);
 
   return (
@@ -63,27 +46,20 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
             <div className="flex items-start justify-between">
                 <div>
                     <p className="text-blue-100 text-xs font-medium uppercase tracking-wider mb-1">My Room</p>
-                    <p className="text-3xl font-bold">101</p>
+                    <p className="text-3xl font-bold">{currentUser.room || 'N/A'}</p>
                 </div>
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                     <Building2 size={20} className="text-white" />
                 </div>
             </div>
-            <p className="text-sm text-blue-100 opacity-90 mt-2">Block A, First Floor</p>
+            <p className="text-sm text-blue-100 opacity-90 mt-2">Welcome, {currentUser.name}</p>
         </div>
 
         {/* Payment Stat */}
-        <div 
-            onClick={() => onNavigate('Payment')} 
-            className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]"
-        >
+        <div onClick={() => onNavigate('Payment')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]">
             <div className="flex justify-between items-start">
-                <div className="p-2.5 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform">
-                    <CreditCard size={24} />
-                </div>
-                <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors">
-                    <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" />
-                </div>
+                <div className="p-2.5 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform"><CreditCard size={24} /></div>
+                <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors"><ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" /></div>
             </div>
             <div>
                 <p className="text-slate-500 text-sm font-medium">Total Dues</p>
@@ -92,17 +68,10 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
         </div>
 
         {/* Complaints Stat */}
-        <div 
-            onClick={() => onNavigate('Complaints')} 
-            className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]"
-        >
+        <div onClick={() => onNavigate('Complaints')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]">
             <div className="flex justify-between items-start">
-                <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl group-hover:scale-110 transition-transform">
-                    <FileText size={24} />
-                </div>
-                 <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors">
-                    <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" />
-                </div>
+                <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl group-hover:scale-110 transition-transform"><FileText size={24} /></div>
+                <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors"><ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" /></div>
             </div>
             <div>
                 <p className="text-slate-500 text-sm font-medium">Active Complaints</p>
@@ -111,17 +80,10 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
         </div>
 
          {/* Leave Stat */}
-         <div 
-            onClick={() => onNavigate('Leave Request')} 
-            className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]"
-        >
+         <div onClick={() => onNavigate('Leave Request')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]">
             <div className="flex justify-between items-start">
-                <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform">
-                    <Calendar size={24} />
-                </div>
-                 <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors">
-                    <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" />
-                </div>
+                <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform"><Calendar size={24} /></div>
+                <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors"><ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" /></div>
             </div>
             <div>
                 <p className="text-slate-500 text-sm font-medium">Pending Leaves</p>
@@ -130,33 +92,19 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
         </div>
       </div>
 
+      {/* Recent Activity & Notices (Same as before, just ensuring imports are correct) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Activity Column */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
-                      <Clock size={20} className="text-slate-400"/> Recent Requests
-                  </h3>
-                  <button 
-                    onClick={() => onNavigate('Complaints')}
-                    className="text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors"
-                  >
-                    View All
-                  </button>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><Clock size={20} className="text-slate-400"/> Recent Requests</h3>
+                  <button onClick={() => onNavigate('Complaints')} className="text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors">View All</button>
               </div>
-              
               <div className="space-y-3">
                   {recentActivity.length > 0 ? recentActivity.map((item) => (
                       <div key={item.id + item.type} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-100/50">
                           <div className="flex items-center gap-4">
-                              <div className={`p-2.5 rounded-full shrink-0 ${
-                                  item.type === 'Complaint' ? 'bg-orange-100 text-orange-600' : 
-                                  item.type === 'Payment' ? 'bg-green-100 text-green-600' :
-                                  'bg-blue-100 text-blue-600'
-                              }`}>
-                                  {item.type === 'Complaint' ? <AlertCircle size={18}/> : 
-                                   item.type === 'Payment' ? <CreditCard size={18}/> :
-                                   <Wrench size={18}/>}
+                              <div className={`p-2.5 rounded-full shrink-0 ${item.type === 'Complaint' ? 'bg-orange-100 text-orange-600' : item.type === 'Payment' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                                  {item.type === 'Complaint' ? <AlertCircle size={18}/> : item.type === 'Payment' ? <CreditCard size={18}/> : <Wrench size={18}/>}
                               </div>
                               <div>
                                   <p className="font-semibold text-slate-800 text-sm">{item.title}</p>
@@ -167,11 +115,7 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
                                   </div>
                               </div>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${
-                              item.status === 'Resolved' || item.status === 'Approved' || item.status === 'Completed' || item.status === 'Paid'
-                              ? 'bg-green-100 text-green-700' 
-                              : item.status === 'Rejected' || item.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${item.status === 'Resolved' || item.status === 'Approved' || item.status === 'Completed' || item.status === 'Paid' ? 'bg-green-100 text-green-700' : item.status === 'Rejected' || item.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
                               {item.status}
                           </span>
                       </div>
@@ -184,37 +128,23 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
               </div>
           </div>
 
-          {/* Notices Column */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col">
                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
-                        <Bell size={20} className="text-slate-400"/> Notice Board
-                    </h3>
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><Bell size={20} className="text-slate-400"/> Notice Board</h3>
                </div>
-              
               <div className="space-y-4 flex-1">
                   {pinnedAnnouncements.length > 0 ? pinnedAnnouncements.map(ann => (
                        <div key={ann.id} className="p-4 rounded-xl bg-gradient-to-br from-blue-50/50 to-slate-50 border border-blue-100 hover:border-blue-200 transition-colors">
                             <div className="flex justify-between items-start mb-2">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                                    ann.type === 'urgent' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
-                                }`}>
-                                    {ann.type}
-                                </span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${ann.type === 'urgent' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>{ann.type}</span>
                                 <span className="text-[10px] text-slate-400 font-medium">{ann.date}</span>
                             </div>
                             <h4 className="font-semibold text-slate-800 text-sm mb-1 leading-tight">{ann.title}</h4>
                             <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed opacity-80">{ann.content}</p>
                        </div>
-                  )) : (
-                      <p className="text-sm text-slate-500 text-center py-4">No new notices</p>
-                  )}
+                  )) : <p className="text-sm text-slate-500 text-center py-4">No new notices</p>}
               </div>
-              
-              <button 
-                onClick={() => onNavigate('Announcements')} 
-                className="w-full mt-4 py-2.5 flex items-center justify-center gap-2 text-sm text-slate-600 font-medium bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all"
-              >
+              <button onClick={() => onNavigate('Announcements')} className="w-full mt-4 py-2.5 flex items-center justify-center gap-2 text-sm text-slate-600 font-medium bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all">
                   View All Notices <ArrowRight size={16}/>
               </button>
           </div>

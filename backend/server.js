@@ -22,6 +22,9 @@ app.get('/', (req, res) => {
 });
 
 // Routes
+
+// Routes
+app.use('/api/auth', require('./routes/authRoutes')); // <--- ADD THIS LINE
 app.use('/api/complaints', require('./routes/complaintRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/service-requests', require('./routes/serviceRequestRoutes'));

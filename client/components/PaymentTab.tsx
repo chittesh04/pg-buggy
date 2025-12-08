@@ -3,8 +3,8 @@ import { CreditCard, Download, CheckCircle2, AlertCircle, Clock } from 'lucide-r
 import { useData } from '../services/DataContext';
 
 export const PaymentTab: React.FC = () => {
-  const { payments, payBill } = useData();
-  const myPayments = payments.filter(p => p.studentName === 'John Doe');
+  const { payments, payBill, currentUser } = useData();
+  const myPayments = payments.filter(p => p.studentName === currentUser?.name);
 
   const stats = {
     totalDue: myPayments.filter(p => p.status !== 'Paid').reduce((acc, curr) => acc + curr.amount, 0),

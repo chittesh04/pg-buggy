@@ -16,7 +16,7 @@ import { LeaveRequestTab } from './LeaveRequestTab';
 import { PaymentTab } from './PaymentTab';
 import { AnnouncementsTab } from './AnnouncementsTab';
 import { UserDashboardOverview } from './UserDashboardOverview';
-import { useData } from '../services/DataContext';
+import { useData } from '../services/DataContext'; // <--- Import useData
 
 interface UserDashboardProps {
   onLogout: () => void;
@@ -24,10 +24,13 @@ interface UserDashboardProps {
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('Dashboard');
-  const { complaints, payments, announcements } = useData();
+  
+  // 1. Get currentUser from Context
+  const { complaints, payments, announcements, currentUser } = useData();
 
-  const pendingPayments = payments.filter(p => p.studentName === 'John Doe' && p.status !== 'Paid').length;
-  const activeComplaints = complaints.filter(c => c.studentName === 'John Doe' && c.status !== 'Resolved').length;
+  // 2. Filter badges based on the REAL current user
+  const pendingPayments = payments.filter(p => p.studentName === currentUser?.name && p.status !== 'Paid').length;
+  const activeComplaints = complaints.filter(c => c.studentName === currentUser?.name && c.status !== 'Resolved').length;
   const pinnedAnnouncements = announcements.filter(a => a.isPinned).length;
 
   const menuItems = [
@@ -51,15 +54,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onLogout }) => {
           <span className="font-bold text-slate-800 tracking-tight">Hostel Portal</span>
         </div>
 
-        {/* User Profile */}
+        {/* User Profile - DYNAMIC DATA NOW */}
         <div className="p-6 bg-gradient-to-b from-blue-50/50 to-transparent border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-md border-2 border-blue-200">
               <User size={20} />
             </div>
             <div className="overflow-hidden">
-              <h3 className="font-semibold text-slate-800 truncate text-sm">John Doe</h3>
-              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-medium">Room 101</p>
+              {/* Replace John Doe with currentUser.name */}
+              <h3 className="font-semibold text-slate-800 truncate text-sm">
+                {currentUser?.name || 'User'}
+              </h3>
+              {/* Replace Room 101 with currentUser.room */}
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-medium">
+                Room {currentUser?.room || 'N/A'}
+              </p>
             </div>
           </div>
         </div>
@@ -107,7 +116,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onLogout }) => {
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between shrink-0 z-10 sticky top-0">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{activeTab}</h1>
-            <p className="text-sm text-slate-500 hidden md:block">Welcome back, John!</p>
+            {/* Dynamic Welcome Message */}
+            <p className="text-sm text-slate-500 hidden md:block">
+              Welcome back, {currentUser?.name.split(' ')[0]}!
+            </p>
           </div>
           
           <button 

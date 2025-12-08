@@ -33,7 +33,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { 
     users, complaints, serviceRequests, leaveRequests, payments, announcements, recentActivity,
     updateComplaintStatus, updateServiceRequestStatus, updateLeaveRequestStatus, updatePaymentStatus,
-    addUser, deleteUser, addAnnouncement
+    addUser, deleteUser, addAnnouncement,addPayment
   } = useData();
 
   const menuItems = [
@@ -65,17 +65,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // --- Sub Components ---
 
-  const Overview = () => {
+const Overview = () => {
     const pendingPaymentsTotal = payments.filter(p => p.status === 'Pending' || p.status === 'Overdue').reduce((sum, p) => sum + p.amount, 0);
     const occupancyRate = Math.round((users.filter(u => u.status === 'Active').length / 50) * 100); // Assuming 50 rooms capacity
 
+    // Added 'target' property to map cards to tabs
     const stats = [
-      { title: 'Total Users', value: users.length, change: '+2', icon: <Users size={20} />, color: 'text-blue-600 bg-blue-100' },
-      { title: 'Active Complaints', value: complaints.filter(c => c.status !== 'Resolved').length, change: complaints.filter(c => c.status !== 'Resolved').length > 5 ? '+5' : 'Normal', icon: <FileText size={20} />, color: 'text-red-600 bg-red-100' },
-      { title: 'Service Requests', value: serviceRequests.filter(s => s.status === 'Pending').length, change: '+1', icon: <Wrench size={20} />, color: 'text-green-600 bg-green-100' },
-      { title: 'Leave Requests', value: leaveRequests.filter(l => l.status === 'Pending').length, change: 'Review', icon: <CalendarDays size={20} />, color: 'text-purple-600 bg-purple-100' },
-      { title: 'Pending Revenue', value: `₹${pendingPaymentsTotal.toLocaleString()}`, change: 'Due Soon', icon: <CreditCard size={20} />, color: 'text-yellow-600 bg-yellow-100' },
-      { title: 'Occupancy Rate', value: `${occupancyRate}%`, change: '+2%', icon: <TrendingUp size={20} />, color: 'text-indigo-600 bg-indigo-100' },
+      { title: 'Total Users', target: 'Users', value: users.length, change: '+2', icon: <Users size={20} />, color: 'text-blue-600 bg-blue-100' },
+      { title: 'Active Complaints', target: 'Complaints', value: complaints.filter(c => c.status !== 'Resolved').length, change: complaints.filter(c => c.status !== 'Resolved').length > 5 ? '+5' : 'Normal', icon: <FileText size={20} />, color: 'text-red-600 bg-red-100' },
+      { title: 'Service Requests', target: 'Service Requests', value: serviceRequests.filter(s => s.status === 'Pending').length, change: '+1', icon: <Wrench size={20} />, color: 'text-green-600 bg-green-100' },
+      { title: 'Leave Requests', target: 'Leave Requests', value: leaveRequests.filter(l => l.status === 'Pending').length, change: 'Review', icon: <CalendarDays size={20} />, color: 'text-purple-600 bg-purple-100' },
+      { title: 'Pending Revenue', target: 'Payments', value: `₹${pendingPaymentsTotal.toLocaleString()}`, change: 'Due Soon', icon: <CreditCard size={20} />, color: 'text-yellow-600 bg-yellow-100' },
+      { title: 'Occupancy Rate', target: 'Users', value: `${occupancyRate}%`, change: '+2%', icon: <TrendingUp size={20} />, color: 'text-indigo-600 bg-indigo-100' },
     ];
 
     const urgentIssues = complaints.filter(c => c.priority === 'High' && c.status !== 'Resolved');
@@ -87,9 +88,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <div 
+              key={index} 
+              onClick={() => setActiveTab(stat.target)} // <--- Redirects to the specific tab
+              className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:border-purple-200 hover:-translate-y-1 transition-all cursor-pointer group"
+            >
               <div className="flex justify-between items-start mb-4">
-                <div className={`p-3 rounded-lg ${stat.color}`}>
+                <div className={`p-3 rounded-lg ${stat.color} group-hover:scale-110 transition-transform`}>
                   {stat.icon}
                 </div>
                 <span className={`text-xs font-medium ${stat.change.startsWith('+') ? 'text-green-600' : 'text-slate-500'}`}>
@@ -138,7 +143,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </h3>
               <div className="space-y-4">
                 {urgentIssues.length > 0 ? urgentIssues.map(issue => (
-                  <div key={issue.id} className="bg-red-50 border border-red-100 p-4 rounded-lg hover:bg-red-100 transition-colors cursor-pointer">
+                  <div 
+                    key={issue.id} 
+                    onClick={() => setActiveTab('Complaints')} // Clicking an issue goes to Complaints tab
+                    className="bg-red-50 border border-red-100 p-4 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                  >
                     <div className="flex justify-between items-start">
                       <h4 className="text-sm font-semibold text-slate-800">{issue.title}</h4>
                       <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full uppercase font-bold">High</span>
@@ -160,40 +169,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     );
   };
 
-  const UsersList = () => {
+const UsersList = () => {
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', room: '', contact: '' });
+    // Added 'password' to the state
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', room: '', contact: '' });
     const [searchTerm, setSearchTerm] = useState('');
 
     const handleAddUser = (e: React.FormEvent) => {
         e.preventDefault();
+        // Pass all fields including password to DataContext
         addUser({
-            id: Date.now().toString(),
             name: newUser.name,
             email: newUser.email,
+            password: newUser.password, // <--- Sending real password
             room: newUser.room,
-            contact: newUser.contact,
-            joinDate: new Date().toISOString().split('T')[0],
-            status: 'Active'
+            contact: newUser.contact
         });
         setIsAddUserOpen(false);
-        setNewUser({ name: '', email: '', room: '', contact: '' });
+        setNewUser({ name: '', email: '', password: '', room: '', contact: '' });
     };
 
-    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.room.includes(searchTerm));
+    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || (u.room && u.room.includes(searchTerm)));
 
     return (
       <div className="animate-in fade-in duration-500">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Manage Users</h2>
-            <p className="text-slate-500 text-sm mt-1">View and manage hostel residents</p>
+            <p className="text-slate-500 text-sm mt-1">Create accounts and manage residents</p>
           </div>
           <button onClick={() => setIsAddUserOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
             <Plus size={18} /> Add User
           </button>
         </div>
         
+        {/* Search and Table Section */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 bg-slate-50 flex gap-4">
             <div className="relative flex-1 max-w-md">
@@ -214,8 +224,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <th className="px-6 py-3">Name</th>
                   <th className="px-6 py-3">Contact</th>
                   <th className="px-6 py-3">Room</th>
-                  <th className="px-6 py-3">Join Date</th>
-                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3">Role</th>
                   <th className="px-6 py-3 text-right">Action</th>
                 </tr>
               </thead>
@@ -229,25 +238,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                          </div>
                          <div>
                             <p className="font-medium text-slate-800">{user.name}</p>
-                            <p className="text-xs text-slate-500">ID: {user.id}</p>
+                            <p className="text-xs text-slate-500">{user.email}</p>
                          </div>
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-slate-600">{user.contact || 'N/A'}</td>
+                    <td className="px-6 py-4 text-slate-600 font-medium">{user.room || '-'}</td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 text-slate-600">
-                            <Mail size={12} className="text-slate-400"/> {user.email}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-600">
-                            <Phone size={12} className="text-slate-400"/> {user.contact}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 font-medium">{user.room}</td>
-                    <td className="px-6 py-4 text-slate-600">{user.joinDate}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                        {user.status}
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${user.role === 'Admin' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                        {user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -258,7 +257,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </tr>
                 )) : (
                     <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
                             No users found matching "{searchTerm}"
                         </td>
                     </tr>
@@ -273,7 +272,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
                     <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <h3 className="font-semibold text-slate-800">Add New Resident</h3>
+                        <h3 className="font-semibold text-slate-800">Create New Account</h3>
                         <button onClick={() => setIsAddUserOpen(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={20}/></button>
                     </div>
                     <form onSubmit={handleAddUser} className="p-6 space-y-4">
@@ -282,9 +281,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             <input required type="text" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Email Address</label>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Email Address (Login ID)</label>
                             <input required type="email" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
                         </div>
+                        
+                        {/* NEW PASSWORD FIELD */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Set Password</label>
+                            <input 
+                                required 
+                                type="text" // Using text so Admin can see what they are typing to tell the student
+                                placeholder="Create a password"
+                                className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
+                                value={newUser.password} 
+                                onChange={e => setNewUser({...newUser, password: e.target.value})} 
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">Share this password with the student.</p>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-medium text-slate-700 mb-1">Room Number</label>
@@ -295,7 +309,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                                 <input required type="text" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.contact} onChange={e => setNewUser({...newUser, contact: e.target.value})} />
                             </div>
                         </div>
-                        <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2">Add User</button>
+                        <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2">Create Account</button>
                     </form>
                 </div>
             </div>
@@ -454,53 +468,183 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     </div>
   );
 
-  const PaymentsList = () => (
-    <div className="animate-in fade-in duration-500">
-       <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-800">Manage Payments</h2>
-          <p className="text-slate-500 text-sm mt-1">Track hostel fees and payment status</p>
-       </div>
-       
-       <div className="space-y-3">
-         {payments.map(payment => (
-           <div key={payment.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:shadow-md transition-all">
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                 <div className="bg-slate-100 p-3 rounded-lg text-slate-600 shrink-0"><CreditCard size={20} /></div>
-                 <div>
-                    <p className="font-medium text-slate-800">{payment.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                        <span className="font-medium text-slate-600">{payment.studentName}</span>
-                        <span className="text-slate-300">|</span>
-                        <span>Room {payment.room}</span>
-                        <span className="text-slate-300">|</span>
-                        <span>Due: {payment.dueDate}</span>
-                    </p>
-                 </div>
-              </div>
-              <div className="text-right w-full md:w-auto flex items-center justify-between md:block border-t border-slate-50 pt-3 md:border-0 md:pt-0">
-                <div className="md:text-right">
-                    <p className="font-bold text-slate-800">₹{payment.amount.toLocaleString()}</p>
+const PaymentsList = () => {
+    // State for the Modal
+    const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
+    const [newFee, setNewFee] = useState({
+      title: '',
+      amount: '',
+      dueDate: '',
+      studentId: '' // We will store the selected User ID here
+    });
+
+    // Get users to populate the dropdown
+    const students = users.filter(u => u.role === 'User'); 
+
+    const handleScheduleFee = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Logic to handle "All Students" or "Single Student"
+      if (newFee.studentId === 'ALL') {
+        // Create a fee for EVERY student
+        for (const student of students) {
+          await addPayment({ // This calls the function we added to DataContext
+            title: newFee.title,
+            amount: Number(newFee.amount),
+            dueDate: newFee.dueDate,
+            status: 'Pending',
+            student: student.id,
+            studentName: student.name,
+            room: student.room
+          });
+        }
+      } else {
+        // Create fee for SINGLE student
+        const selectedStudent = students.find(s => s.id === newFee.studentId);
+        if (selectedStudent) {
+          await addPayment({
+            title: newFee.title,
+            amount: Number(newFee.amount),
+            dueDate: newFee.dueDate,
+            status: 'Pending',
+            student: selectedStudent.id,
+            studentName: selectedStudent.name,
+            room: selectedStudent.room
+          });
+        }
+      }
+
+      setIsFeeModalOpen(false);
+      setNewFee({ title: '', amount: '', dueDate: '', studentId: '' });
+    };
+
+    return (
+      <div className="animate-in fade-in duration-500">
+         <div className="flex justify-between items-center mb-6">
+            <div>
+                <h2 className="text-2xl font-bold text-slate-800">Manage Payments</h2>
+                <p className="text-slate-500 text-sm mt-1">Track fees and schedule new payments</p>
+            </div>
+            {/* The New Schedule Button */}
+            <button 
+              onClick={() => setIsFeeModalOpen(true)} 
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
+            >
+              <Plus size={18} /> Schedule Fee
+            </button>
+         </div>
+         
+         <div className="space-y-3">
+           {payments.map(payment => (
+             <div key={payment.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                   <div className="bg-slate-100 p-3 rounded-lg text-slate-600 shrink-0"><CreditCard size={20} /></div>
+                   <div>
+                      <p className="font-medium text-slate-800">{payment.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                          <span className="font-medium text-slate-600">{payment.studentName}</span>
+                          <span className="text-slate-300">|</span>
+                          <span>Room {payment.room}</span>
+                          <span className="text-slate-300">|</span>
+                          <span>Due: {payment.dueDate}</span>
+                      </p>
+                   </div>
                 </div>
-                <div className="md:mt-1">
-                    <select 
-                        value={payment.status} 
-                        onChange={(e) => updatePaymentStatus(payment.id, e.target.value as any)}
-                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded border-none outline-none cursor-pointer ${
-                            payment.status === 'Paid' ? 'bg-green-100 text-green-600' : 
-                            payment.status === 'Overdue' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
-                        }`}
-                    >
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Overdue">Overdue</option>
-                    </select>
+                <div className="text-right w-full md:w-auto flex items-center justify-between md:block border-t border-slate-50 pt-3 md:border-0 md:pt-0">
+                  <div className="md:text-right">
+                      <p className="font-bold text-slate-800">₹{payment.amount.toLocaleString()}</p>
+                  </div>
+                  <div className="md:mt-1">
+                      <select 
+                          value={payment.status} 
+                          onChange={(e) => updatePaymentStatus(payment.id, e.target.value as any)}
+                          className={`text-[10px] uppercase font-bold px-2 py-1 rounded border-none outline-none cursor-pointer ${
+                              payment.status === 'Paid' ? 'bg-green-100 text-green-600' : 
+                              payment.status === 'Overdue' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
+                          }`}
+                      >
+                          <option value="Pending">Pending</option>
+                          <option value="Paid">Paid</option>
+                          <option value="Overdue">Overdue</option>
+                      </select>
+                  </div>
                 </div>
-              </div>
-           </div>
-         ))}
-       </div>
-    </div>
-  );
+             </div>
+           ))}
+         </div>
+
+         {/* Schedule Fee Modal */}
+         {isFeeModalOpen && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
+                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <h3 className="font-semibold text-slate-800">Schedule New Fee</h3>
+                        <button onClick={() => setIsFeeModalOpen(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={20}/></button>
+                    </div>
+                    <form onSubmit={handleScheduleFee} className="p-6 space-y-4">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Fee Title</label>
+                            <input 
+                              required 
+                              type="text" 
+                              placeholder="e.g. Hostel Fee - Dec 2025"
+                              className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
+                              value={newFee.title} 
+                              onChange={e => setNewFee({...newFee, title: e.target.value})} 
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Amount (₹)</label>
+                              <input 
+                                required 
+                                type="number" 
+                                className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
+                                value={newFee.amount} 
+                                onChange={e => setNewFee({...newFee, amount: e.target.value})} 
+                              />
+                           </div>
+                           <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
+                              <input 
+                                required 
+                                type="date" 
+                                className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
+                                value={newFee.dueDate} 
+                                onChange={e => setNewFee({...newFee, dueDate: e.target.value})} 
+                              />
+                           </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Assign To</label>
+                            <select 
+                              required 
+                              className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500 bg-white"
+                              value={newFee.studentId}
+                              onChange={e => setNewFee({...newFee, studentId: e.target.value})}
+                            >
+                                <option value="">Select Student</option>
+                                <option value="ALL" className="font-bold text-purple-600">-- All Students --</option>
+                                {students.map(student => (
+                                  <option key={student.id} value={student.id}>
+                                    {student.name} (Room {student.room})
+                                  </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2">
+                          Schedule Payment
+                        </button>
+                    </form>
+                </div>
+            </div>
+         )}
+      </div>
+    );
+  };
 
   const AnnouncementsList = () => {
      const [showForm, setShowForm] = useState(false);

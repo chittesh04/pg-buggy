@@ -3,8 +3,8 @@ import { Plus, Calendar, Clock, CheckCircle2, X, AlertCircle } from 'lucide-reac
 import { useData, LeaveRequest } from '../services/DataContext';
 
 export const LeaveRequestTab: React.FC = () => {
-  const { leaveRequests, addLeaveRequest } = useData();
-  const myRequests = leaveRequests.filter(r => r.studentName === 'John Doe');
+  const { leaveRequests, addLeaveRequest, currentUser } = useData();
+  const myRequests = leaveRequests.filter(r => r.studentName === currentUser?.name);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newRequest, setNewRequest] = useState({
@@ -31,16 +31,14 @@ export const LeaveRequestTab: React.FC = () => {
     e.preventDefault();
     const days = calculateDays(newRequest.startDate, newRequest.endDate);
     
-    const request: LeaveRequest = {
-      id: Date.now().toString(),
+    const request: any = {
       startDate: newRequest.startDate,
       endDate: newRequest.endDate,
       reason: newRequest.reason,
       status: 'Pending',
       submissionDate: new Date().toISOString().split('T')[0],
       days: days,
-      studentName: 'John Doe',
-      room: '101'
+      // Name and Room handled by DataContext
     };
 
     addLeaveRequest(request);
