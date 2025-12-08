@@ -148,7 +148,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Check if the role matches (prevent Students logging into Admin)
       if (res.data.user.role !== role) {
-        alert(`Access Denied: You are not an ${role}`);
         return false;
       }
 
@@ -173,7 +172,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return true;
     } catch (error: any) {
       console.error("Login failed:", error.response?.data?.message || error.message);
-      alert(error.response?.data?.message || "Login Failed");
       return false;
     }
   };

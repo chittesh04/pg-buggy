@@ -108,26 +108,7 @@ function App() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-2 md:px-0 animate-in fade-in slide-in-from-bottom-12 duration-700 delay-200">
-          <FeatureCard
-            title="Feature 1"
-            description="Easy to use interface"
-            subDescription="Fast & Reliable service"
-            icon={<LayoutDashboard size={24} />}
-          />
-          <FeatureCard
-            title="Feature 2"
-            description="Real-time Notifications"
-            subDescription="Stay updated instantly"
-            icon={<Zap size={24} />}
-          />
-          <FeatureCard
-            title="Feature 3"
-            description="Secure Database"
-            subDescription="Your data is safe with us"
-            icon={<Server size={24} />}
-          />
-        </div>
+
       </>
     );
   };

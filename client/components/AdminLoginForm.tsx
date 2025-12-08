@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Mail, Lock, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Mail, Lock, ArrowLeft, Eye, EyeOff, AlertCircle, X } from 'lucide-react';
 import { useData } from '../services/DataContext';
 
 interface AdminLoginFormProps {
@@ -8,27 +8,76 @@ interface AdminLoginFormProps {
 }
 
 export const AdminLoginForm: React.FC<AdminLoginFormProps> = ({ onBack, onLogin }) => {
-  const { login } = useData(); // Get login function from context
+  const { login } = useData();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // State for Modern Error Toast
+  const [error, setError] = useState<string | null>(null);
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('admin_remember_email');
+    const savedPass = localStorage.getItem('admin_remember_pass');
+    if (savedEmail && savedPass) {
+      setEmail(savedEmail);
+      setPassword(savedPass);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null); // Clear errors
 
-    // Attempt login with role 'Admin'
-    // The login function in DataContext handles the API call and error alerting
-    const success = await login(email, password, 'Admin');
-    
-    setIsLoading(false);
-    if (success) {
-      onLogin(); // Redirect to dashboard only if auth succeeds
+    // Handle Remember Me Logic
+    if (rememberMe) {
+      localStorage.setItem('admin_remember_email', email);
+      localStorage.setItem('admin_remember_pass', password);
+    } else {
+      localStorage.removeItem('admin_remember_email');
+      localStorage.removeItem('admin_remember_pass');
+    }
+
+    try {
+      // Attempt login
+      const success = await login(email, password, 'Admin');
+      
+      if (success) {
+        onLogin();
+      } else {
+         // Show Modern Error
+         setError("Access Denied. Incorrect Admin credentials.");
+         setTimeout(() => setError(null), 4000);
+      }
+    } catch (err) {
+      setError("System error. Unable to connect.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center animate-in fade-in duration-500">
+    <div className="w-full flex flex-col items-center justify-center animate-in fade-in duration-500 relative">
+      
+      {/* --- Modern Floating Error Toast (Purple Theme) --- */}
+      {error && (
+        <div className="fixed top-5 right-5 z-50 bg-white border-l-4 border-red-500 shadow-xl rounded-md p-4 flex items-start gap-3 max-w-sm animate-in slide-in-from-top-5 fade-in duration-300">
+          <AlertCircle className="text-red-500 shrink-0" size={20} />
+          <div>
+            <h4 className="font-semibold text-red-600 text-sm">Authentication Failed</h4>
+            <p className="text-slate-600 text-xs mt-0.5">{error}</p>
+          </div>
+          <button onClick={() => setError(null)} className="text-slate-400 hover:text-slate-600 ml-auto">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="bg-white p-8 rounded-lg shadow-[0_4px_20px_-5px_rgba(0,0,0,0.1)] border border-slate-100 w-full max-w-[420px]">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-purple-100 p-3 rounded-full mb-4">
@@ -63,22 +112,34 @@ export const AdminLoginForm: React.FC<AdminLoginFormProps> = ({ onBack, onLogin 
                 <Lock size={18} className="text-slate-400" />
               </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-100 focus:border-purple-500 outline-none transition-all text-sm text-slate-700 placeholder:text-slate-400"
+                className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-100 focus:border-purple-500 outline-none transition-all text-sm text-slate-700 placeholder:text-slate-400"
                 placeholder="Enter your password"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-purple-600 cursor-pointer"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
           <div className="flex items-center justify-between text-sm mt-2">
             <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+              <input 
+                type="checkbox" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" 
+              />
               <span className="text-slate-600">Remember me</span>
             </label>
-            <a href="#" className="text-purple-600 hover:text-purple-700 font-medium">Forgot Password?</a>
           </div>
 
           <button 
@@ -97,20 +158,6 @@ export const AdminLoginForm: React.FC<AdminLoginFormProps> = ({ onBack, onLogin 
             ) : 'Login'}
           </button>
         </form>
-
-        <div className="relative my-8">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white text-slate-400 uppercase tracking-wider">Or</span>
-          </div>
-        </div>
-
-        <div className="text-center space-y-3 text-sm">
-           <p className="text-slate-500">Need admin access? <a href="#" className="text-purple-600 font-medium hover:underline">Contact super admin</a></p>
-           <p className="text-purple-500 hover:underline cursor-pointer">admin@hostel.com / admin123</p>
-        </div>
       </div>
 
       <button onClick={onBack} className="mt-8 flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium">

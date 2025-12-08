@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const User = require('../models/user');
 
 // Secret key for signing tokens (In production, put this in .env)
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_123';
