@@ -381,13 +381,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const deleteUser = async (id: string) => {
+const deleteUser = async (id: string) => {
     try {
       await axios.delete(`${API_URL}/users/${id}`);
+      
+      // 1. Remove User from state
       setUsers(prev => prev.filter(u => u.id !== id));
-    } catch (error) { console.error(error); }
+
+      // 2. Remove associated data from local state so UI updates instantly
+      setComplaints(prev => prev.filter(c => (c as any).student !== id));
+      setServiceRequests(prev => prev.filter(s => (s as any).student !== id));
+      setLeaveRequests(prev => prev.filter(l => (l as any).student !== id));
+      setPayments(prev => prev.filter(p => (p as any).student !== id));
+
+      addActivity('Admin', 'deleted a user and their data', 'other');
+      
+    } catch (error) { 
+      console.error(error); 
+      alert("Failed to delete user data");
+    }
   };
 
+  
   return (
     <DataContext.Provider value={{
       currentUser, isAuthenticated, login, logout,

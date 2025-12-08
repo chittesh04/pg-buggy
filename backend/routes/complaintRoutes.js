@@ -21,7 +21,7 @@ router.post('/', async (req, res) => {
     category: req.body.category,
     studentName: req.body.studentName,
     room: req.body.room,
-    // Date and Status have defaults in the model
+    student: req.body.student 
   });
 
   try {

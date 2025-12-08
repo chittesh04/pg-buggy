@@ -6,7 +6,9 @@ const ComplaintSchema = new mongoose.Schema({
   priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
   status: { type: String, enum: ['Pending', 'In-progress', 'Resolved'], default: 'Pending' },
   category: { type: String, required: true },
-  studentName: { type: String, required: true }, // Later this will be a User ID
+  // ADD THIS LINE:
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  studentName: { type: String, required: true },
   room: { type: String, required: true },
   date: { type: Date, default: Date.now }
 });

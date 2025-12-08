@@ -4,7 +4,7 @@ const User = require('./models/User');
 require('dotenv').config();
 
 // REPLACE with your connection string if not using .env
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://chittesh04:chittesh04@cluster0.d2ilo1g.mongodb.net/?appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://chittesh04:chittesh04@cluster0.d2ilo1g.mongodb.net/hostel_db?appName=Cluster0';
 
 mongoose.connect(MONGO_URI)
   .then(async () => {
