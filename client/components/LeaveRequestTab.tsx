@@ -4,7 +4,8 @@ import { useData, LeaveRequest } from '../services/DataContext';
 
 export const LeaveRequestTab: React.FC = () => {
   const { leaveRequests, addLeaveRequest, currentUser } = useData();
-  const myRequests = leaveRequests.filter(r => r.studentName === currentUser?.name);
+  const myRequests = leaveRequests.filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id));
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newRequest, setNewRequest] = useState({

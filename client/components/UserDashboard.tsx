@@ -29,8 +29,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onLogout }) => {
   const { complaints, payments, announcements, currentUser } = useData();
 
   // 2. Filter badges based on the REAL current user
-  const pendingPayments = payments.filter(p => p.studentName === currentUser?.name && p.status !== 'Paid').length;
-  const activeComplaints = complaints.filter(c => c.studentName === currentUser?.name && c.status !== 'Resolved').length;
+  const pendingPayments = payments.filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status !== 'Paid').length;
+  const activeComplaints = complaints.filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status !== 'Resolved').length;
   const pinnedAnnouncements = announcements.filter(a => a.isPinned).length;
 
   const menuItems = [

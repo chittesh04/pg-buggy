@@ -4,7 +4,8 @@ import { useData } from '../services/DataContext';
 
 export const PaymentTab: React.FC = () => {
   const { payments, payBill, currentUser } = useData();
-  const myPayments = payments.filter(p => p.studentName === currentUser?.name);
+  const myPayments = payments.filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id));
 
   const stats = {
     totalDue: myPayments.filter(p => p.status !== 'Paid').reduce((acc, curr) => acc + curr.amount, 0),

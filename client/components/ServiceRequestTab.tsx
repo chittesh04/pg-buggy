@@ -18,7 +18,8 @@ export const ServiceRequestTab: React.FC = () => {
   const { serviceRequests, addServiceRequest, currentUser } = useData();
   
   // Filter by Current User
-  const myRequests = serviceRequests.filter(r => r.studentName === currentUser?.name);
+  const myRequests = serviceRequests.filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);

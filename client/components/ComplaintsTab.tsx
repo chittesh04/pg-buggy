@@ -20,7 +20,8 @@ export const ComplaintsTab: React.FC = () => {
   const { complaints, addComplaint, currentUser } = useData(); // Get currentUser
   
   // Filter by Current User
-  const myComplaints = complaints.filter(c => c.studentName === currentUser?.name);
+  const myComplaints = complaints.filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id));
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   

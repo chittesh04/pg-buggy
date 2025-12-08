@@ -13,27 +13,33 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
 
   // Stats Calculations (Filtered by Current User)
   const totalDue = payments
-    .filter(p => p.studentName === currentUser.name && p.status !== 'Paid')
-    .reduce((sum, p) => sum + p.amount, 0);
+    .filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status !== 'Paid')
+    .reduce((sum, c) => sum + c.amount, 0);
   
   const activeComplaints = complaints
-    .filter(c => c.studentName === currentUser.name && c.status !== 'Resolved').length;
+    .filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status !== 'Resolved').length;
 
   const pendingLeaves = leaveRequests
-    .filter(l => l.studentName === currentUser.name && l.status === 'Pending').length;
+    .filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status === 'Pending').length;
 
   const pinnedAnnouncements = announcements.filter(a => a.isPinned).slice(0, 2);
 
   // Combine recent activities
   const recentActivity = [
     ...complaints
-        .filter(c => c.studentName === currentUser.name)
+        .filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id))
         .map(c => ({ id: c.id, title: c.title, type: 'Complaint', date: c.date, status: c.status })),
     ...serviceRequests
-        .filter(s => s.studentName === currentUser.name)
+        .filter(c => 
+  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id))
         .map(s => ({ id: s.id, title: s.serviceType, type: 'Service', date: s.requestedDate, status: s.status })),
     ...payments
-        .filter(p => p.studentName === currentUser.name)
+        .filter(p => 
+  (typeof p.student === 'string' ? p.student === currentUser?.id : (p.student as any)?.id === currentUser?.id))
         .map(p => ({ id: p.id, title: p.title, type: 'Payment', date: p.paidOn || p.dueDate, status: p.status })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 4);
 
