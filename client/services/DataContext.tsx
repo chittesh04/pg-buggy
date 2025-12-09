@@ -2,10 +2,14 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import axios from 'axios';
 
 // --- Configuration ---
-// Allow the environment variable to override localhost
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Ensure this matches your backend port
+// const API_URL = 'http://localhost:5000/api';
+// --- ADD THIS LINE HERE ---
+axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true'; 
 
-
+// --- Configuration ---
+// Make sure this is still your BACKEND ngrok URL
+const API_URL = 'https://vermicular-microbiologically-hanh.ngrok-free.dev/api';
 // --- Interfaces ---
 export interface User {
   id: string;

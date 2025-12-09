@@ -6,10 +6,8 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware
 app.use(cors({
-  // Allow localhost for testing AND your future frontend domain
-  origin: ["http://localhost:3000", "https://YOUR-VERCEL-PROJECT-NAME.vercel.app"],
+  origin: true, // Allows connections from your ngrok frontend
   credentials: true
 }));
 
