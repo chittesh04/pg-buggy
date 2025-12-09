@@ -2,14 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import axios from 'axios';
 
 // --- Configuration ---
-// Ensure this matches your backend port
-// const API_URL = 'http://localhost:5000/api';
-// --- ADD THIS LINE HERE ---
+// Make sure this matches your current ngrok URL
+// Note: Updates to ngrok URLs require updating this string.
+const API_URL = 'https://vermicular-microbiologically-hanh.ngrok-free.dev/api';
+
+// Bypass ngrok browser warning page
 axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true'; 
 
-// --- Configuration ---
-// Make sure this is still your BACKEND ngrok URL
-const API_URL = 'https://vermicular-microbiologically-hanh.ngrok-free.dev/api';
 // --- Interfaces ---
 export interface User {
   id: string;
@@ -17,7 +16,7 @@ export interface User {
   email: string;
   room?: string;
   role: 'Admin' | 'User';
-  contact?: string; // Added contact field
+  contact?: string;
   token?: string;
 }
 
@@ -31,6 +30,7 @@ export interface Complaint {
   date: string;
   studentName: string;
   room: string;
+  student: string; // ID reference
 }
 
 export interface ServiceRequest {
@@ -42,6 +42,7 @@ export interface ServiceRequest {
   status: 'Pending' | 'Approved' | 'In-progress' | 'Completed' | 'Rejected';
   studentName: string;
   room: string;
+  student: string; // ID reference
 }
 
 export interface LeaveRequest {
@@ -54,6 +55,7 @@ export interface LeaveRequest {
   days: number;
   studentName: string;
   room: string;
+  student: string; // ID reference
 }
 
 export interface Payment {
@@ -66,6 +68,7 @@ export interface Payment {
   transactionId?: string;
   studentName: string;
   room: string;
+  student: string; // ID reference
 }
 
 export interface Announcement {
@@ -82,7 +85,6 @@ export interface Activity {
   user: string;
   action: string;
   time: Date;
-  // Update this line to include specific types
   type: 'complaint' | 'payment' | 'service' | 'leave' | 'other'; 
 }
 
@@ -152,7 +154,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { email, password });
       
-      // Check if the role matches (prevent Students logging into Admin)
+      // Check if the role matches
       if (res.data.user.role !== role) {
         return false;
       }
@@ -200,11 +202,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // --- Helper: Normalize MongoDB _id to id ---
-  // This is the CRITICAL FIX for dropdowns and updates
   const normalizeId = (data: any[]) => {
     return data.map(item => ({
       ...item,
-      id: item._id || item.id // Use _id if available, fallback to id
+      id: item._id || item.id 
     }));
   };
 
@@ -256,11 +257,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ...complaintData,
         studentName: currentUser.name,
         room: currentUser.room || 'N/A',
-        student: currentUser.id // Send ID to backend
+        student: currentUser.id 
     };
     try {
       const res = await axios.post(`${API_URL}/complaints`, dataWithUser);
-      // Use _id from response as id
       const newItem = { ...res.data, id: res.data._id };
       setComplaints(prev => [newItem, ...prev]);
       addActivity(currentUser.name, `submitted a complaint: ${complaintData.title}`, 'complaint');
@@ -276,16 +276,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addServiceRequest = async (requestData: any) => {
     if (!currentUser) return;
-    const dataWithUser = { /* ... existing code ... */ };
+    
+    // --- FIX APPLIED HERE: Added proper data construction ---
+    const dataWithUser = {
+        ...requestData,
+        studentName: currentUser.name,
+        room: currentUser.room || 'N/A',
+        student: currentUser.id
+    };
+
     try {
       const res = await axios.post(`${API_URL}/service-requests`, dataWithUser);
       const newItem = { ...res.data, id: res.data._id };
       setServiceRequests(prev => [newItem, ...prev]);
-      // CHANGE 'request' to 'service'
       addActivity(currentUser.name, `requested service: ${requestData.serviceType}`, 'service'); 
     } catch (error) { console.error(error); }
   };
-
 
   const updateServiceRequestStatus = async (id: string, status: ServiceRequest['status']) => {
     try {
@@ -296,12 +302,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addLeaveRequest = async (requestData: any) => {
     if (!currentUser) return;
-    const dataWithUser = { /* ... existing code ... */ };
+
+    // --- FIX APPLIED HERE: Added proper data construction ---
+    const dataWithUser = {
+        ...requestData,
+        studentName: currentUser.name,
+        room: currentUser.room || 'N/A',
+        student: currentUser.id
+    };
+
     try {
       const res = await axios.post(`${API_URL}/leave-requests`, dataWithUser);
       const newItem = { ...res.data, id: res.data._id };
       setLeaveRequests(prev => [newItem, ...prev]);
-      // CHANGE 'request' to 'leave'
       addActivity(currentUser.name, `requested leave`, 'leave'); 
     } catch (error) { console.error(error); }
   };
@@ -322,14 +335,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) { console.error(error); }
   };
 
-const payBill = async (id: string) => {
+  const payBill = async (id: string) => {
     const payment = payments.find(p => p.id === id);
     if (!payment) return;
     try {
       const updateData = {
-        // CHANGE THIS: Don't set to 'Paid' yet. Set to 'Verification Pending'
         status: 'Verification Pending',
-        // We set the date the user claimed they paid
         paidOn: new Date().toISOString().split('T')[0],
       };
       
@@ -346,7 +357,7 @@ const payBill = async (id: string) => {
   const addPayment = async (paymentData: any) => {
     try {
       const res = await axios.post(`${API_URL}/payments`, paymentData);
-      // CRITICAL FIX: Ensure new payment has 'id' property so it works in UI immediately
+      // Ensure new payment has 'id' property so it works in UI immediately
       const newItem = { ...res.data, id: res.data._id };
       setPayments(prev => [...prev, newItem]);
       
@@ -373,7 +384,6 @@ const payBill = async (id: string) => {
       });
       
       const newUser = res.data.user;
-      // CRITICAL FIX: Ensure new user has 'id' property so it works in UI immediately
       const safeUser = { ...newUser, id: newUser.id || newUser._id };
       
       setUsers(prev => [...prev, safeUser]);
@@ -384,18 +394,18 @@ const payBill = async (id: string) => {
     }
   };
 
-const deleteUser = async (id: string) => {
+  const deleteUser = async (id: string) => {
     try {
       await axios.delete(`${API_URL}/users/${id}`);
       
       // 1. Remove User from state
       setUsers(prev => prev.filter(u => u.id !== id));
 
-      // 2. Remove associated data from local state so UI updates instantly
-      setComplaints(prev => prev.filter(c => (c as any).student !== id));
-      setServiceRequests(prev => prev.filter(s => (s as any).student !== id));
-      setLeaveRequests(prev => prev.filter(l => (l as any).student !== id));
-      setPayments(prev => prev.filter(p => (p as any).student !== id));
+      // 2. Remove associated data from local state
+      setComplaints(prev => prev.filter(c => c.student !== id));
+      setServiceRequests(prev => prev.filter(s => s.student !== id));
+      setLeaveRequests(prev => prev.filter(l => l.student !== id));
+      setPayments(prev => prev.filter(p => p.student !== id));
 
       addActivity('Admin', 'deleted a user and their data', 'other');
       
@@ -405,7 +415,6 @@ const deleteUser = async (id: string) => {
     }
   };
 
-  
   return (
     <DataContext.Provider value={{
       currentUser, isAuthenticated, login, logout,

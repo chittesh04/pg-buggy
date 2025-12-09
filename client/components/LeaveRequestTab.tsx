@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Plus, Calendar, Clock, CheckCircle2, X, AlertCircle } from 'lucide-react';
-import { useData, LeaveRequest } from '../services/DataContext';
+import { useData } from '../services/DataContext';
 
 export const LeaveRequestTab: React.FC = () => {
   const { leaveRequests, addLeaveRequest, currentUser } = useData();
+  
   const myRequests = leaveRequests.filter(c => 
-  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id));
+    (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id)
+  );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newRequest, setNewRequest] = useState({
@@ -18,6 +20,17 @@ export const LeaveRequestTab: React.FC = () => {
     total: myRequests.length,
     approved: myRequests.filter(r => r.status === 'Approved').length,
     pending: myRequests.filter(r => r.status === 'Pending').length
+  };
+
+  // --- HELPER FUNCTION: Format Date ---
+  const formatDate = (isoString: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric'
+    }); // Result: "24 Dec 2025"
   };
 
   const calculateDays = (start: string, end: string) => {
@@ -39,7 +52,6 @@ export const LeaveRequestTab: React.FC = () => {
       status: 'Pending',
       submissionDate: new Date().toISOString().split('T')[0],
       days: days,
-      // Name and Room handled by DataContext
     };
 
     addLeaveRequest(request);
@@ -100,8 +112,9 @@ export const LeaveRequestTab: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex items-center gap-3 mb-1">
+                    {/* --- FIX APPLIED HERE: Using formatDate() --- */}
                     <span className="font-semibold text-slate-800 text-base">
-                      {req.startDate} to {req.endDate}
+                      {formatDate(req.startDate)} to {formatDate(req.endDate)}
                     </span>
                     <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                       {req.days} days
@@ -115,7 +128,8 @@ export const LeaveRequestTab: React.FC = () => {
             
             <div className="flex items-center gap-2 text-xs text-slate-400 pl-[52px]">
               <Clock size={12} />
-              <span>Submitted on {req.submissionDate}</span>
+              {/* --- FIX APPLIED HERE: Using formatDate() --- */}
+              <span>Submitted on {formatDate(req.submissionDate)}</span>
             </div>
           </div>
         )) : (
@@ -142,7 +156,6 @@ export const LeaveRequestTab: React.FC = () => {
                     type="date"
                     required
                     min={new Date().toISOString().split('T')[0]} // Disable past dates
-
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all"
                     value={newRequest.startDate}
                     onChange={e => setNewRequest({...newRequest, startDate: e.target.value})}
