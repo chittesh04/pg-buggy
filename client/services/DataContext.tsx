@@ -82,7 +82,8 @@ export interface Activity {
   user: string;
   action: string;
   time: Date;
-  type: 'complaint' | 'payment' | 'request' | 'other';
+  // Update this line to include specific types
+  type: 'complaint' | 'payment' | 'service' | 'leave' | 'other'; 
 }
 
 // --- Context Type ---
@@ -275,19 +276,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addServiceRequest = async (requestData: any) => {
     if (!currentUser) return;
-    const dataWithUser = {
-        ...requestData,
-        studentName: currentUser.name,
-        room: currentUser.room || 'N/A',
-        student: currentUser.id
-    };
+    const dataWithUser = { /* ... existing code ... */ };
     try {
       const res = await axios.post(`${API_URL}/service-requests`, dataWithUser);
       const newItem = { ...res.data, id: res.data._id };
       setServiceRequests(prev => [newItem, ...prev]);
-      addActivity(currentUser.name, `requested service: ${requestData.serviceType}`, 'request');
+      // CHANGE 'request' to 'service'
+      addActivity(currentUser.name, `requested service: ${requestData.serviceType}`, 'service'); 
     } catch (error) { console.error(error); }
   };
+
 
   const updateServiceRequestStatus = async (id: string, status: ServiceRequest['status']) => {
     try {
@@ -298,17 +296,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addLeaveRequest = async (requestData: any) => {
     if (!currentUser) return;
-    const dataWithUser = {
-        ...requestData,
-        studentName: currentUser.name,
-        room: currentUser.room || 'N/A',
-        student: currentUser.id
-    };
+    const dataWithUser = { /* ... existing code ... */ };
     try {
       const res = await axios.post(`${API_URL}/leave-requests`, dataWithUser);
       const newItem = { ...res.data, id: res.data._id };
       setLeaveRequests(prev => [newItem, ...prev]);
-      addActivity(currentUser.name, `requested leave`, 'request');
+      // CHANGE 'request' to 'leave'
+      addActivity(currentUser.name, `requested leave`, 'leave'); 
     } catch (error) { console.error(error); }
   };
 

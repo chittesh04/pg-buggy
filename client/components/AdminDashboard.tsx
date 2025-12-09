@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -11,16 +11,11 @@ import {
   ShieldCheck,
   LogOut,
   Search,
-  Filter,
-  MoreVertical,
-  TrendingUp,
   Plus,
   CheckCircle,
   XCircle,
-  Clock,
   Trash2,
-  Mail,
-  Phone
+  TrendingUp
 } from 'lucide-react';
 import { useData } from '../services/DataContext';
 
@@ -30,10 +25,22 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('Overview');
+  
   const { 
-    users, complaints, serviceRequests, leaveRequests, payments, announcements, recentActivity,
-    updateComplaintStatus, updateServiceRequestStatus, updateLeaveRequestStatus, updatePaymentStatus,
-    addUser, deleteUser, addAnnouncement, addPayment
+    users, 
+    complaints, 
+    serviceRequests, 
+    leaveRequests, 
+    payments, 
+    announcements, 
+    updateComplaintStatus, 
+    updateServiceRequestStatus, 
+    updateLeaveRequestStatus, 
+    updatePaymentStatus,
+    addUser, 
+    deleteUser, 
+    addAnnouncement, 
+    addPayment
   } = useData();
 
   const menuItems = [
@@ -47,9 +54,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     { name: 'Settings', icon: <Settings size={20} /> },
   ];
 
+  // --- Helper: Dynamic Activity Log Construction ---
+  const derivedActivity = useMemo(() => {
+    const allActivities = [
+      ...complaints.map(c => ({
+        id: c.id,
+        type: 'complaint',
+        user: c.studentName || 'Unknown',
+        action: `reported issue: ${c.title}`,
+        time: c.date,
+        rawTime: new Date(c.date)
+      })),
+      ...serviceRequests.map(s => ({
+        id: s.id,
+        type: 'service',
+        user: s.studentName || 'Unknown',
+        action: `requested service: ${s.serviceType}`,
+        time: s.requestedDate,
+        rawTime: new Date(s.requestedDate)
+      })),
+      ...leaveRequests.map(l => ({
+        id: l.id,
+        type: 'leave',
+        user: l.studentName || 'Unknown',
+        action: `requested leave for ${l.days} days`,
+        time: l.submissionDate,
+        rawTime: new Date(l.submissionDate)
+      })),
+      ...payments.filter(p => p.status === 'Paid' || p.status === 'Verification Pending').map(p => ({
+        id: p.id,
+        type: 'payment',
+        user: p.studentName || 'Unknown',
+        action: `payment update: ${p.title}`,
+        time: p.paidOn || p.dueDate,
+        rawTime: new Date(p.paidOn || p.dueDate)
+      }))
+    ];
+
+    // Sort by newest first and take top 20
+    return allActivities.sort((a, b) => b.rawTime.getTime() - a.rawTime.getTime()).slice(0, 20);
+  }, [complaints, serviceRequests, leaveRequests, payments]);
+
   // Helper to calculate time ago
-  const timeAgo = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+  const timeAgo = (dateStr: string | Date) => {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "Recently";
+    
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + " years ago";
     interval = seconds / 2592000;
@@ -63,15 +114,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     return "Just now";
   };
 
+  // --- Click Redirect Handler ---
+  const handleActivityClick = (type: string) => {
+    switch (type) {
+      case 'complaint': setActiveTab('Complaints'); break;
+      case 'service': setActiveTab('Service Requests'); break;
+      case 'leave': setActiveTab('Leave Requests'); break;
+      case 'payment': setActiveTab('Payments'); break;
+      default: break;
+    }
+  };
+
   // --- Sub Components ---
 
   const Overview = () => {
     const pendingPaymentsTotal = payments.filter(p => p.status === 'Pending' || p.status === 'Overdue').reduce((sum, p) => sum + p.amount, 0);
-    const occupancyRate = Math.round((users.filter(u => u.role === 'User').length / 50) * 100); // Assuming 50 rooms capacity
+    const occupancyRate = Math.round((users.filter(u => u.role === 'User').length / 50) * 100);
 
     const stats = [
       { title: 'Total Users', target: 'Users', value: users.length, change: '+2', icon: <Users size={20} />, color: 'text-blue-600 bg-blue-100' },
-      { title: 'Active Complaints', target: 'Complaints', value: complaints.filter(c => c.status !== 'Resolved').length, change: complaints.filter(c => c.status !== 'Resolved').length > 5 ? '+5' : 'Normal', icon: <FileText size={20} />, color: 'text-red-600 bg-red-100' },
+      { title: 'Active Complaints', target: 'Complaints', value: complaints.filter(c => c.status !== 'Resolved').length, change: complaints.filter(c => c.status !== 'Resolved').length > 5 ? 'High' : 'Normal', icon: <FileText size={20} />, color: 'text-red-600 bg-red-100' },
       { title: 'Service Requests', target: 'Service Requests', value: serviceRequests.filter(s => s.status === 'Pending').length, change: '+1', icon: <Wrench size={20} />, color: 'text-green-600 bg-green-100' },
       { title: 'Leave Requests', target: 'Leave Requests', value: leaveRequests.filter(l => l.status === 'Pending').length, change: 'Review', icon: <CalendarDays size={20} />, color: 'text-purple-600 bg-purple-100' },
       { title: 'Pending Revenue', target: 'Payments', value: `₹${pendingPaymentsTotal.toLocaleString()}`, change: 'Due Soon', icon: <CreditCard size={20} />, color: 'text-yellow-600 bg-yellow-100' },
@@ -106,63 +168,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-           {/* Real-time Recent Activity Feed */}
-           <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm h-96 overflow-y-auto">
-              <h3 className="font-semibold text-slate-800 mb-4 sticky top-0 bg-white z-10 pb-2 border-b border-slate-50">Recent Activity</h3>
-              <div className="space-y-6">
-                  {recentActivity.length > 0 ? recentActivity.map(activity => (
-                    <div key={activity.id} className="flex gap-4 items-start">
-                      <div className={`p-2 rounded-full h-fit shrink-0 ${
-                          activity.type === 'complaint' ? 'bg-red-50 text-red-500' : 
-                          activity.type === 'payment' ? 'bg-green-50 text-green-500' : 
-                          activity.type === 'request' ? 'bg-blue-50 text-blue-500' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                          {activity.type === 'complaint' ? <FileText size={14}/> : 
-                           activity.type === 'payment' ? <CreditCard size={14}/> : 
-                           activity.type === 'request' ? <Wrench size={14}/> : <Bell size={14}/>}
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-800">
-                            <span className="font-medium">{activity.user}</span> {activity.action}
-                        </p>
-                        <p className="text-xs text-slate-400">{timeAgo(activity.time)}</p>
-                      </div>
-                    </div>
-                  )) : (
-                      <p className="text-slate-400 text-sm text-center py-10">No recent activity.</p>
-                  )}
+        <div className="grid grid-cols-1 lg:grid-cols-full gap-8">
+           
+           {/* === RECENT ACTIVITY (FIXED LAYOUT) === */}
+           <div className="bg-white rounded-xl border border-slate-100 shadow-sm h-96 flex flex-col overflow-hidden">
+              {/* Header: Fixed at top */}
+              <div className="p-4 border-b border-slate-100 bg-white shrink-0 z-10">
+                  <h3 className="font-semibold text-slate-800">Recent Activity</h3>
+              </div>
+              
+              {/* List: Scrollable Area */}
+              <div className="overflow-y-auto flex-1 p-0 custom-scrollbar">
+                  <div className="divide-y divide-slate-50">
+                    {derivedActivity.length > 0 ? derivedActivity.map(activity => (
+                        <div 
+                            key={activity.id + activity.type} 
+                            onClick={() => handleActivityClick(activity.type)}
+                            className="flex gap-4 items-start p-4 hover:bg-slate-50 cursor-pointer transition-colors w-full group"
+                        >
+                            <div className={`p-2 rounded-full h-fit shrink-0 group-hover:scale-110 transition-transform ${
+                                activity.type === 'complaint' ? 'bg-red-50 text-red-500' : 
+                                activity.type === 'payment' ? 'bg-green-50 text-green-500' : 
+                                activity.type === 'service' ? 'bg-blue-50 text-blue-500' : 
+                                activity.type === 'leave' ? 'bg-purple-50 text-purple-500' : 
+                                'bg-slate-100 text-slate-500'
+                            }`}>
+                                {activity.type === 'complaint' ? <FileText size={16}/> : 
+                                 activity.type === 'payment' ? <CreditCard size={16}/> : 
+                                 activity.type === 'service' ? <Wrench size={16}/> : 
+                                 activity.type === 'leave' ? <CalendarDays size={16}/> : 
+                                 <Bell size={16}/>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm text-slate-800 leading-tight truncate">
+                                    <span className="font-semibold">{activity.user}</span> <span className="text-slate-600">{activity.action}</span>
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">{timeAgo(activity.time)}</p>
+                            </div>
+                        </div>
+                    )) : (
+                        <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                           <Bell size={32} className="mb-2 opacity-20"/>
+                           <p className="text-sm">No recent activity found.</p>
+                        </div>
+                    )}
+                  </div>
               </div>
            </div>
 
-           {/* Urgent Issues */}
-           <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm h-96 overflow-y-auto">
-              <h3 className="font-semibold text-slate-800 mb-4 text-red-600 flex items-center gap-2 sticky top-0 bg-white z-10 pb-2 border-b border-slate-50">
-                <ShieldCheck size={18}/> Urgent Issues
-              </h3>
-              <div className="space-y-4">
-                {urgentIssues.length > 0 ? urgentIssues.map(issue => (
-                  <div 
-                    key={issue.id} 
-                    onClick={() => setActiveTab('Complaints')}
-                    className="bg-red-50 border border-red-100 p-4 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-                  >
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-sm font-semibold text-slate-800">{issue.title}</h4>
-                      <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full uppercase font-bold">High</span>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1 mb-1">{issue.description}</p>
-                    <div className="flex justify-between items-center mt-2">
-                        <span className="text-xs font-medium text-red-800 bg-red-200/50 px-2 py-0.5 rounded">Room: {issue.room}</span>
-                        <span className="text-[10px] text-red-400">{issue.studentName}</span>
-                    </div>
-                  </div>
-                )) : <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                        <CheckCircle size={32} className="mb-2 text-green-400 opacity-50"/>
-                        <p className="text-sm">No urgent issues pending.</p>
-                     </div>}
-              </div>
-           </div>
+
+
         </div>
       </div>
     );
@@ -175,13 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     const handleAddUser = (e: React.FormEvent) => {
         e.preventDefault();
-        addUser({
-            name: newUser.name,
-            email: newUser.email,
-            password: newUser.password,
-            room: newUser.room,
-            contact: newUser.contact
-        });
+        addUser(newUser);
         setIsAddUserOpen(false);
         setNewUser({ name: '', email: '', password: '', room: '', contact: '' });
     };
@@ -200,7 +249,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </button>
         </div>
         
-        {/* Search and Table Section */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 bg-slate-50 flex gap-4">
             <div className="relative flex-1 max-w-md">
@@ -264,7 +312,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* Add User Modal */}
         {isAddUserOpen && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
@@ -278,30 +325,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             <input required type="text" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Email Address (Login ID)</label>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Email (Login ID)</label>
                             <input required type="email" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
                         </div>
-                        
                         <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Set Password</label>
-                            <input 
-                                required 
-                                type="text" 
-                                placeholder="Create a password"
-                                className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
-                                value={newUser.password} 
-                                onChange={e => setNewUser({...newUser, password: e.target.value})} 
-                            />
-                            <p className="text-[10px] text-slate-400 mt-1">Share this password with the student.</p>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
+                            <input required type="text" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
                         </div>
-
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-slate-700 mb-1">Room Number</label>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Room No.</label>
                                 <input required type="text" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.room} onChange={e => setNewUser({...newUser, room: e.target.value})} />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-700 mb-1">Contact Number</label>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Contact</label>
                                 <input required type="text" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newUser.contact} onChange={e => setNewUser({...newUser, contact: e.target.value})} />
                             </div>
                         </div>
@@ -348,12 +385,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <option value="In-progress">In Progress</option>
                     <option value="Resolved">Resolved</option>
                  </select>
-                 <span className={`px-2 py-1 rounded text-xs font-medium hidden md:inline-block ${
-                   complaint.status === 'Resolved' ? 'bg-green-100 text-green-700' : 
-                   complaint.status === 'In-progress' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
-                 }`}>
-                   {complaint.status}
-                 </span>
                </div>
              </div>
              <p className="text-slate-600 text-sm mb-3">{complaint.description}</p>
@@ -396,23 +427,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                </div>
              </div>
              <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end bg-slate-50 p-2 rounded-lg md:bg-transparent md:p-0">
-                <span className="text-xs text-slate-500 font-medium md:hidden">Status:</span>
-                <div className="flex items-center gap-2">
-                    <select 
-                        value={req.status} 
-                        onChange={(e) => updateServiceRequestStatus(req.id, e.target.value as any)}
-                        className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
-                    >
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Rejected">Rejected</option>
-                    </select>
-                    <span className={`w-2 h-2 rounded-full ${
-                    req.status === 'Approved' || req.status === 'Completed' ? 'bg-green-500' :
-                    req.status === 'Pending' ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}></span>
-                </div>
+                <select 
+                    value={req.status} 
+                    onChange={(e) => updateServiceRequestStatus(req.id, e.target.value as any)}
+                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                >
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
              </div>
            </div>
          ))}
@@ -464,174 +488,165 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     </div>
   );
 
-// REPLACE THE EXISTING PaymentsList CONSTANT IN AdminDashboard.tsx WITH THIS:
+  const PaymentsList = () => {
+    const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [newFee, setNewFee] = useState({ title: '', amount: '', dueDate: '', studentId: '' });
+    const students = users.filter(u => u.role === 'User');
 
-const PaymentsList = () => {
-  const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [newFee, setNewFee] = useState({ title: '', amount: '', dueDate: '', studentId: '' });
-  const students = users.filter(u => u.role === 'User');
-
-  // Handle Create Fee Logic (Same as before)
-  const handleScheduleFee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    try {
-      if (newFee.studentId === 'ALL') {
-        const paymentPromises = students.map(student => 
-            addPayment({
-            title: newFee.title,
-            amount: Number(newFee.amount),
-            dueDate: newFee.dueDate,
-            status: 'Pending',
-            student: student.id,
-            studentName: student.name,
-            room: student.room
-          })
-        );
-        await Promise.all(paymentPromises);
-      } else {
-        const selectedStudent = students.find(s => s.id === newFee.studentId);
-        if (selectedStudent) {
-          await addPayment({
-            title: newFee.title,
-            amount: Number(newFee.amount),
-            dueDate: newFee.dueDate,
-            status: 'Pending',
-            student: selectedStudent.id,
-            studentName: selectedStudent.name,
-            room: selectedStudent.room
-          });
+    const handleScheduleFee = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsProcessing(true);
+      try {
+        if (newFee.studentId === 'ALL') {
+          const paymentPromises = students.map(student => 
+              addPayment({
+              title: newFee.title,
+              amount: Number(newFee.amount),
+              dueDate: newFee.dueDate,
+              status: 'Pending',
+              student: student.id,
+              studentName: student.name,
+              room: student.room
+            })
+          );
+          await Promise.all(paymentPromises);
+        } else {
+          const selectedStudent = students.find(s => s.id === newFee.studentId);
+          if (selectedStudent) {
+            await addPayment({
+              title: newFee.title,
+              amount: Number(newFee.amount),
+              dueDate: newFee.dueDate,
+              status: 'Pending',
+              student: selectedStudent.id,
+              studentName: selectedStudent.name,
+              room: selectedStudent.room
+            });
+          }
         }
-      }
-      setIsFeeModalOpen(false);
-      setNewFee({ title: '', amount: '', dueDate: '', studentId: '' });
-    } catch (err) { console.error(err); } finally { setIsProcessing(false); }
-  };
+        setIsFeeModalOpen(false);
+        setNewFee({ title: '', amount: '', dueDate: '', studentId: '' });
+      } catch (err) { console.error(err); } finally { setIsProcessing(false); }
+    };
 
-  return (
-    <div className="animate-in fade-in duration-500">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-              <h2 className="text-2xl font-bold text-slate-800">Manage Payments</h2>
-              <p className="text-slate-500 text-sm mt-1">Track fees and verify student payments</p>
+    return (
+      <div className="animate-in fade-in duration-500">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+                <h2 className="text-2xl font-bold text-slate-800">Manage Payments</h2>
+                <p className="text-slate-500 text-sm mt-1">Track fees and verify student payments</p>
+            </div>
+            <button onClick={() => setIsFeeModalOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm">
+              <Plus size={18} /> Schedule Fee
+            </button>
           </div>
-          <button onClick={() => setIsFeeModalOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm">
-            <Plus size={18} /> Schedule Fee
-          </button>
-        </div>
-        
-        <div className="space-y-3">
-          {payments.map(payment => (
-            <div 
-              key={payment.id} 
-              className={`bg-white p-4 rounded-xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 transition-all ${
-                payment.status === 'Verification Pending' ? 'border-orange-300 shadow-orange-100 ring-1 ring-orange-100' : 'border-slate-100'
-              }`}
-            >
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                  <div className="bg-slate-100 p-3 rounded-lg text-slate-600 shrink-0"><CreditCard size={20} /></div>
-                  <div>
-                    <p className="font-medium text-slate-800">{payment.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                        <span className="font-medium text-slate-600">{payment.studentName}</span>
-                        <span className="text-slate-300">|</span>
-                        <span>Room {payment.room}</span>
-                        <span className="text-slate-300">|</span>
-                        <span>Due: {payment.dueDate}</span>
-                    </p>
-                    {/* verification Alert */}
-                    {payment.status === 'Verification Pending' && (
-                      <p className="text-xs text-orange-600 font-bold mt-1 flex items-center gap-1 animate-pulse">
-                        <Bell size={10} /> Payment verification required
+          
+          <div className="space-y-3">
+            {payments.map(payment => (
+              <div 
+                key={payment.id} 
+                className={`bg-white p-4 rounded-xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 transition-all ${
+                  payment.status === 'Verification Pending' ? 'border-orange-300 shadow-orange-100 ring-1 ring-orange-100' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="bg-slate-100 p-3 rounded-lg text-slate-600 shrink-0"><CreditCard size={20} /></div>
+                    <div>
+                      <p className="font-medium text-slate-800">{payment.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                          <span className="font-medium text-slate-600">{payment.studentName}</span>
+                          <span className="text-slate-300">|</span>
+                          <span>Room {payment.room}</span>
+                          <span className="text-slate-300">|</span>
+                          <span>Due: {payment.dueDate}</span>
                       </p>
-                    )}
-                  </div>
-              </div>
-              
-              <div className="text-right w-full md:w-auto flex flex-col items-end gap-2">
-                <div className="flex items-center gap-4 justify-between w-full md:w-auto">
-                    <p className="font-bold text-slate-800">₹{payment.amount.toLocaleString()}</p>
-                    
-                    {/* Status Dropdown */}
-                    <select 
-                        value={payment.status} 
-                        onChange={(e) => updatePaymentStatus(payment.id, e.target.value as any)}
-                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded border-none outline-none cursor-pointer ${
-                            payment.status === 'Paid' ? 'bg-green-100 text-green-600' : 
-                            payment.status === 'Overdue' ? 'bg-red-100 text-red-600' : 
-                            payment.status === 'Verification Pending' ? 'bg-orange-100 text-orange-600' :
-                            'bg-yellow-100 text-yellow-600'
-                        }`}
-                    >
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Overdue">Overdue</option>
-                        <option value="Verification Pending">Verifying</option>
-                    </select>
-                </div>
-
-                {/* VERIFICATION BUTTONS */}
-                {payment.status === 'Verification Pending' && (
-                  <div className="flex gap-2 mt-1">
-                    <button 
-                      onClick={() => updatePaymentStatus(payment.id, 'Pending')}
-                      className="px-3 py-1 text-xs font-medium text-red-600 bg-white border border-red-200 rounded hover:bg-red-50"
-                    >
-                      Reject
-                    </button>
-                    <button 
-                      onClick={() => updatePaymentStatus(payment.id, 'Paid')}
-                      className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 shadow-sm flex items-center gap-1"
-                    >
-                      <CheckCircle size={12} /> Verify
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Modal for creating fees (Copied from previous implementation) */}
-        {isFeeModalOpen && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-                <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <h3 className="font-semibold text-slate-800">Schedule New Fee</h3>
-                        <button onClick={() => setIsFeeModalOpen(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={20}/></button>
+                      {payment.status === 'Verification Pending' && (
+                        <p className="text-xs text-orange-600 font-bold mt-1 flex items-center gap-1 animate-pulse">
+                          <Bell size={10} /> Payment verification required
+                        </p>
+                      )}
                     </div>
-                    <form onSubmit={handleScheduleFee} className="p-6 space-y-4">
-                        <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Fee Title</label>
-                            <input required type="text" placeholder="e.g. Hostel Fee" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.title} onChange={e => setNewFee({...newFee, title: e.target.value})} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div>
-                              <label className="block text-xs font-medium text-slate-700 mb-1">Amount (₹)</label>
-                              <input required type="number" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.amount} onChange={e => setNewFee({...newFee, amount: e.target.value})} />
-                           </div>
-                           <div>
-                              <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
-                              <input required type="date" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.dueDate} onChange={e => setNewFee({...newFee, dueDate: e.target.value})} />
-                           </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Assign To</label>
-                            <select required className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500 bg-white" value={newFee.studentId} onChange={e => setNewFee({...newFee, studentId: e.target.value})}>
-                                <option value="">Select Student</option>
-                                <option value="ALL" className="font-bold text-purple-600">-- All Students --</option>
-                                {students.map(student => (<option key={student.id} value={student.id}>{student.name} (Room {student.room})</option>))}
-                            </select>
-                        </div>
-                        <button type="submit" disabled={isProcessing} className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2">{isProcessing ? 'Processing...' : 'Schedule Payment'}</button>
-                    </form>
                 </div>
-            </div>
-        )}
-    </div>
-  );
-};
+                
+                <div className="text-right w-full md:w-auto flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-4 justify-between w-full md:w-auto">
+                      <p className="font-bold text-slate-800">₹{payment.amount.toLocaleString()}</p>
+                      <select 
+                          value={payment.status} 
+                          onChange={(e) => updatePaymentStatus(payment.id, e.target.value as any)}
+                          className={`text-[10px] uppercase font-bold px-2 py-1 rounded border-none outline-none cursor-pointer ${
+                              payment.status === 'Paid' ? 'bg-green-100 text-green-600' : 
+                              payment.status === 'Overdue' ? 'bg-red-100 text-red-600' : 
+                              payment.status === 'Verification Pending' ? 'bg-orange-100 text-orange-600' :
+                              'bg-yellow-100 text-yellow-600'
+                          }`}
+                      >
+                          <option value="Pending">Pending</option>
+                          <option value="Paid">Paid</option>
+                          <option value="Overdue">Overdue</option>
+                          <option value="Verification Pending">Verifying</option>
+                      </select>
+                  </div>
+                  {payment.status === 'Verification Pending' && (
+                    <div className="flex gap-2 mt-1">
+                      <button 
+                        onClick={() => updatePaymentStatus(payment.id, 'Pending')}
+                        className="px-3 py-1 text-xs font-medium text-red-600 bg-white border border-red-200 rounded hover:bg-red-50"
+                      >
+                        Reject
+                      </button>
+                      <button 
+                        onClick={() => updatePaymentStatus(payment.id, 'Paid')}
+                        className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 shadow-sm flex items-center gap-1"
+                      >
+                        <CheckCircle size={12} /> Verify
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {isFeeModalOpen && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                  <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
+                      <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                          <h3 className="font-semibold text-slate-800">Schedule New Fee</h3>
+                          <button onClick={() => setIsFeeModalOpen(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={20}/></button>
+                      </div>
+                      <form onSubmit={handleScheduleFee} className="p-6 space-y-4">
+                          <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Fee Title</label>
+                              <input required type="text" placeholder="e.g. Hostel Fee" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.title} onChange={e => setNewFee({...newFee, title: e.target.value})} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Amount (₹)</label>
+                                <input required type="number" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.amount} onChange={e => setNewFee({...newFee, amount: e.target.value})} />
+                             </div>
+                             <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
+                                <input required type="date" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.dueDate} onChange={e => setNewFee({...newFee, dueDate: e.target.value})} />
+                             </div>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Assign To</label>
+                              <select required className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500 bg-white" value={newFee.studentId} onChange={e => setNewFee({...newFee, studentId: e.target.value})}>
+                                  <option value="">Select Student</option>
+                                  <option value="ALL" className="font-bold text-purple-600">-- All Students --</option>
+                                  {students.map(student => (<option key={student.id} value={student.id}>{student.name} (Room {student.room})</option>))}
+                              </select>
+                          </div>
+                          <button type="submit" disabled={isProcessing} className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2">{isProcessing ? 'Processing...' : 'Schedule Payment'}</button>
+                      </form>
+                  </div>
+              </div>
+          )}
+      </div>
+    );
+  };
 
   const AnnouncementsList = () => {
      const [showForm, setShowForm] = useState(false);
@@ -738,29 +753,11 @@ const PaymentsList = () => {
               </div>
               <button className="text-purple-600 text-sm font-medium hover:underline">Change Password</button>
           </div>
-
-           <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-              <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600"><Bell size={16}/></div>
-                  System Notifications
-              </h3>
-              <div className="space-y-3">
-                  <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                      <span className="text-sm text-slate-700">Email Alerts for Urgent Complaints</span>
-                      <input type="checkbox" defaultChecked className="accent-purple-600 w-4 h-4"/>
-                  </label>
-                   <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                      <span className="text-sm text-slate-700">Daily Activity Report</span>
-                      <input type="checkbox" className="accent-purple-600 w-4 h-4"/>
-                  </label>
-              </div>
-          </div>
       </div>
   );
 
   return (
     <div className="flex h-screen bg-slate-50 w-full font-sans overflow-hidden">
-      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col fixed h-full z-20 hidden md:flex shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="p-6 border-b border-slate-100 flex items-center gap-3">
           <div className="bg-purple-600 p-1.5 rounded-lg text-white shadow-lg shadow-purple-200">
@@ -809,7 +806,6 @@ const PaymentsList = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 md:ml-64 flex flex-col min-h-screen overflow-hidden bg-slate-50/50">
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between shrink-0 z-10 sticky top-0">
            <div className="flex items-center gap-2 text-slate-400 text-sm">
@@ -821,7 +817,7 @@ const PaymentsList = () => {
            <div className="flex gap-4">
                <button className="p-2 text-slate-400 hover:bg-slate-100 hover:text-purple-600 rounded-full transition-colors relative">
                    <Bell size={20}/>
-                   {recentActivity.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>}
+                   {complaints.filter(c => c.status === 'Pending').length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>}
                </button>
            </div>
         </header>

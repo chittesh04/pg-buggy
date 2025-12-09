@@ -1,5 +1,15 @@
 import React from 'react';
-import { CreditCard, FileText, Calendar, Bell, ArrowRight, Building2, Wrench, Clock, AlertCircle } from 'lucide-react';
+import { 
+  CreditCard, 
+  FileText, 
+  Calendar, 
+  Bell, 
+  ArrowRight, 
+  Building2, 
+  Wrench, 
+  Clock, 
+  AlertCircle 
+} from 'lucide-react';
 import { useData } from '../services/DataContext';
 
 interface UserDashboardOverviewProps {
@@ -11,43 +21,85 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
 
   if (!currentUser) return <div className="p-8 text-center">Loading profile...</div>;
 
-  // Stats Calculations (Filtered by Current User)
-  const totalDue = payments
-    .filter(c => 
-  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status !== 'Paid')
-    .reduce((sum, c) => sum + c.amount, 0);
+  // --- Filter Data for Current User ---
+  const myPayments = payments.filter(p => 
+    (typeof p.student === 'string' ? p.student === currentUser.id : (p.student as any)?.id === currentUser.id)
+  );
   
-  const activeComplaints = complaints
-    .filter(c => 
-  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status !== 'Resolved').length;
+  const myComplaints = complaints.filter(c => 
+    (typeof c.student === 'string' ? c.student === currentUser.id : (c.student as any)?.id === currentUser.id)
+  );
 
-  const pendingLeaves = leaveRequests
-    .filter(c => 
-  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id) && c.status === 'Pending').length;
+  const myServiceRequests = serviceRequests.filter(s => 
+    (typeof s.student === 'string' ? s.student === currentUser.id : (s.student as any)?.id === currentUser.id)
+  );
+
+  const myLeaves = leaveRequests.filter(l => 
+    (typeof l.student === 'string' ? l.student === currentUser.id : (l.student as any)?.id === currentUser.id)
+  );
+
+  // --- Stats Calculations ---
+  const totalDue = myPayments
+    .filter(p => p.status !== 'Paid')
+    .reduce((sum, p) => sum + p.amount, 0);
+  
+  const activeComplaints = myComplaints
+    .filter(c => c.status !== 'Resolved').length;
+
+  const pendingLeaves = myLeaves
+    .filter(l => l.status === 'Pending').length;
 
   const pinnedAnnouncements = announcements.filter(a => a.isPinned).slice(0, 2);
 
-  // Combine recent activities
+  // --- Recent Activity List Generation ---
+  // We combine different data sources into one list for the overview
   const recentActivity = [
-    ...complaints
-        .filter(c => 
-  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id))
-        .map(c => ({ id: c.id, title: c.title, type: 'Complaint', date: c.date, status: c.status })),
-    ...serviceRequests
-        .filter(c => 
-  (typeof c.student === 'string' ? c.student === currentUser?.id : (c.student as any)?.id === currentUser?.id))
-        .map(s => ({ id: s.id, title: s.serviceType, type: 'Service', date: s.requestedDate, status: s.status })),
-    ...payments
-        .filter(p => 
-  (typeof p.student === 'string' ? p.student === currentUser?.id : (p.student as any)?.id === currentUser?.id))
-        .map(p => ({ id: p.id, title: p.title, type: 'Payment', date: p.paidOn || p.dueDate, status: p.status })),
+    ...myComplaints.map(c => ({ 
+      id: c.id, 
+      title: c.title, 
+      type: 'Complaint', 
+      date: c.date, 
+      status: c.status 
+    })),
+    ...myServiceRequests.map(s => ({ 
+      id: s.id, 
+      title: s.serviceType, 
+      type: 'Service', 
+      date: s.requestedDate, 
+      status: s.status 
+    })),
+    ...myPayments.map(p => ({ 
+      id: p.id, 
+      title: p.title, 
+      type: 'Payment', 
+      date: p.paidOn || p.dueDate, 
+      status: p.status 
+    })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 4);
+
+  // --- Navigation Handler ---
+  const handleItemClick = (type: string) => {
+    switch (type) {
+      case 'Complaint':
+        onNavigate('Complaints');
+        break;
+      case 'Service':
+        onNavigate('Service Request');
+        break;
+      case 'Payment':
+        onNavigate('Payment');
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <div className="animate-in fade-in duration-500 space-y-6 max-w-6xl mx-auto">
-      {/* Stats Row */}
+      {/* --- Stats Row --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Room Info Card */}
+        
+        {/* Room Info Card (Static) */}
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-200 flex flex-col justify-between h-full min-h-[140px]">
             <div className="flex items-start justify-between">
                 <div>
@@ -61,8 +113,11 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
             <p className="text-sm text-blue-100 opacity-90 mt-2">Welcome, {currentUser.name}</p>
         </div>
 
-        {/* Payment Stat */}
-        <div onClick={() => onNavigate('Payment')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]">
+        {/* Payment Stat Card - Clickable */}
+        <div 
+            onClick={() => onNavigate('Payment')} 
+            className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]"
+        >
             <div className="flex justify-between items-start">
                 <div className="p-2.5 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform"><CreditCard size={24} /></div>
                 <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors"><ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" /></div>
@@ -73,8 +128,11 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
             </div>
         </div>
 
-        {/* Complaints Stat */}
-        <div onClick={() => onNavigate('Complaints')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]">
+        {/* Complaints Stat Card - Clickable */}
+        <div 
+            onClick={() => onNavigate('Complaints')} 
+            className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]"
+        >
             <div className="flex justify-between items-start">
                 <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl group-hover:scale-110 transition-transform"><FileText size={24} /></div>
                 <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors"><ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" /></div>
@@ -85,8 +143,11 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
             </div>
         </div>
 
-         {/* Leave Stat */}
-         <div onClick={() => onNavigate('Leave Request')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]">
+         {/* Leave Stat Card - Clickable */}
+         <div 
+            onClick={() => onNavigate('Leave Request')} 
+            className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between h-full min-h-[140px]"
+        >
             <div className="flex justify-between items-start">
                 <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform"><Calendar size={24} /></div>
                 <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-blue-50 transition-colors"><ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600" /></div>
@@ -98,8 +159,10 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
         </div>
       </div>
 
-      {/* Recent Activity & Notices (Same as before, just ensuring imports are correct) */}
+      {/* --- Main Content Split --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Recent Activity Feed */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><Clock size={20} className="text-slate-400"/> Recent Requests</h3>
@@ -107,13 +170,17 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
               </div>
               <div className="space-y-3">
                   {recentActivity.length > 0 ? recentActivity.map((item) => (
-                      <div key={item.id + item.type} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-100/50">
+                      <div 
+                        key={item.id + item.type} 
+                        onClick={() => handleItemClick(item.type)}
+                        className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-100/50 cursor-pointer group"
+                      >
                           <div className="flex items-center gap-4">
-                              <div className={`p-2.5 rounded-full shrink-0 ${item.type === 'Complaint' ? 'bg-orange-100 text-orange-600' : item.type === 'Payment' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                              <div className={`p-2.5 rounded-full shrink-0 group-hover:scale-110 transition-transform ${item.type === 'Complaint' ? 'bg-orange-100 text-orange-600' : item.type === 'Payment' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
                                   {item.type === 'Complaint' ? <AlertCircle size={18}/> : item.type === 'Payment' ? <CreditCard size={18}/> : <Wrench size={18}/>}
                               </div>
                               <div>
-                                  <p className="font-semibold text-slate-800 text-sm">{item.title}</p>
+                                  <p className="font-semibold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">{item.title}</p>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-xs text-slate-500">{item.type}</span>
                                     <span className="text-slate-300 text-[10px]">•</span>
@@ -134,6 +201,7 @@ export const UserDashboardOverview: React.FC<UserDashboardOverviewProps> = ({ on
               </div>
           </div>
 
+          {/* Notice Board */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col">
                <div className="flex items-center justify-between mb-6">
                     <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><Bell size={20} className="text-slate-400"/> Notice Board</h3>
