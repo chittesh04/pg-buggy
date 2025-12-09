@@ -6,7 +6,7 @@ const PaymentSchema = new mongoose.Schema({
   dueDate: { type: Date, required: true },
   status: { 
     type: String, 
-    enum: ['Pending', 'Paid', 'Overdue'], 
+    enum: ['Pending', 'Paid', 'Overdue', 'Verification Pending'], 
     default: 'Pending' 
   },
   student: { 

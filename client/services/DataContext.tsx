@@ -61,7 +61,7 @@ export interface Payment {
   title: string;
   dueDate: string;
   amount: number;
-  status: 'Paid' | 'Pending' | 'Overdue';
+  status: 'Paid' | 'Pending' | 'Overdue' | 'Verification Pending';
   paidOn?: string;
   transactionId?: string;
   studentName: string;
@@ -328,18 +328,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) { console.error(error); }
   };
 
-  const payBill = async (id: string) => {
+const payBill = async (id: string) => {
     const payment = payments.find(p => p.id === id);
     if (!payment) return;
     try {
       const updateData = {
-        status: 'Paid',
+        // CHANGE THIS: Don't set to 'Paid' yet. Set to 'Verification Pending'
+        status: 'Verification Pending',
+        // We set the date the user claimed they paid
         paidOn: new Date().toISOString().split('T')[0],
-        transactionId: `TXN${Date.now()}`
       };
+      
       const res = await axios.patch(`${API_URL}/payments/${id}`, updateData);
+      
+      // Update local state
       setPayments(prev => prev.map(p => p.id === id ? { ...p, ...updateData } : p));
-      addActivity(payment.studentName, `paid bill: ${payment.title}`, 'payment');
+      
+      // Update activity log
+      addActivity(payment.studentName, `submitted payment for verification: ${payment.title}`, 'payment');
     } catch (error) { console.error(error); }
   };
 

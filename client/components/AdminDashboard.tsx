@@ -464,120 +464,137 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     </div>
   );
 
-  const PaymentsList = () => {
-    // State for the Modal
-    const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [newFee, setNewFee] = useState({
-      title: '',
-      amount: '',
-      dueDate: '',
-      studentId: '' 
-    });
+// REPLACE THE EXISTING PaymentsList CONSTANT IN AdminDashboard.tsx WITH THIS:
 
-    // Get users to populate the dropdown
-    const students = users.filter(u => u.role === 'User'); 
+const PaymentsList = () => {
+  const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [newFee, setNewFee] = useState({ title: '', amount: '', dueDate: '', studentId: '' });
+  const students = users.filter(u => u.role === 'User');
 
-    const handleScheduleFee = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsProcessing(true);
-
-      try {
-        if (newFee.studentId === 'ALL') {
-          // Parallel execution for all students
-          const paymentPromises = students.map(student => 
-             addPayment({
-              title: newFee.title,
-              amount: Number(newFee.amount),
-              dueDate: newFee.dueDate,
-              status: 'Pending',
-              student: student.id,
-              studentName: student.name,
-              room: student.room
-            })
-          );
-          await Promise.all(paymentPromises);
-        } else {
-          // Single student
-          const selectedStudent = students.find(s => s.id === newFee.studentId);
-          if (selectedStudent) {
-            await addPayment({
-              title: newFee.title,
-              amount: Number(newFee.amount),
-              dueDate: newFee.dueDate,
-              status: 'Pending',
-              student: selectedStudent.id,
-              studentName: selectedStudent.name,
-              room: selectedStudent.room
-            });
-          }
+  // Handle Create Fee Logic (Same as before)
+  const handleScheduleFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    try {
+      if (newFee.studentId === 'ALL') {
+        const paymentPromises = students.map(student => 
+            addPayment({
+            title: newFee.title,
+            amount: Number(newFee.amount),
+            dueDate: newFee.dueDate,
+            status: 'Pending',
+            student: student.id,
+            studentName: student.name,
+            room: student.room
+          })
+        );
+        await Promise.all(paymentPromises);
+      } else {
+        const selectedStudent = students.find(s => s.id === newFee.studentId);
+        if (selectedStudent) {
+          await addPayment({
+            title: newFee.title,
+            amount: Number(newFee.amount),
+            dueDate: newFee.dueDate,
+            status: 'Pending',
+            student: selectedStudent.id,
+            studentName: selectedStudent.name,
+            room: selectedStudent.room
+          });
         }
-
-        setIsFeeModalOpen(false);
-        setNewFee({ title: '', amount: '', dueDate: '', studentId: '' });
-      } catch (err) {
-        console.error("Error scheduling fees:", err);
-      } finally {
-        setIsProcessing(false);
       }
-    };
+      setIsFeeModalOpen(false);
+      setNewFee({ title: '', amount: '', dueDate: '', studentId: '' });
+    } catch (err) { console.error(err); } finally { setIsProcessing(false); }
+  };
 
-    return (
-      <div className="animate-in fade-in duration-500">
-         <div className="flex justify-between items-center mb-6">
-            <div>
-                <h2 className="text-2xl font-bold text-slate-800">Manage Payments</h2>
-                <p className="text-slate-500 text-sm mt-1">Track fees and schedule new payments</p>
-            </div>
-            <button 
-              onClick={() => setIsFeeModalOpen(true)} 
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
+  return (
+    <div className="animate-in fade-in duration-500">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+              <h2 className="text-2xl font-bold text-slate-800">Manage Payments</h2>
+              <p className="text-slate-500 text-sm mt-1">Track fees and verify student payments</p>
+          </div>
+          <button onClick={() => setIsFeeModalOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm">
+            <Plus size={18} /> Schedule Fee
+          </button>
+        </div>
+        
+        <div className="space-y-3">
+          {payments.map(payment => (
+            <div 
+              key={payment.id} 
+              className={`bg-white p-4 rounded-xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 transition-all ${
+                payment.status === 'Verification Pending' ? 'border-orange-300 shadow-orange-100 ring-1 ring-orange-100' : 'border-slate-100'
+              }`}
             >
-              <Plus size={18} /> Schedule Fee
-            </button>
-         </div>
-         
-         <div className="space-y-3">
-           {payments.map(payment => (
-             <div key={payment.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:shadow-md transition-all">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                   <div className="bg-slate-100 p-3 rounded-lg text-slate-600 shrink-0"><CreditCard size={20} /></div>
-                   <div>
-                      <p className="font-medium text-slate-800">{payment.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                          <span className="font-medium text-slate-600">{payment.studentName}</span>
-                          <span className="text-slate-300">|</span>
-                          <span>Room {payment.room}</span>
-                          <span className="text-slate-300">|</span>
-                          <span>Due: {payment.dueDate}</span>
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                  <div className="bg-slate-100 p-3 rounded-lg text-slate-600 shrink-0"><CreditCard size={20} /></div>
+                  <div>
+                    <p className="font-medium text-slate-800">{payment.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                        <span className="font-medium text-slate-600">{payment.studentName}</span>
+                        <span className="text-slate-300">|</span>
+                        <span>Room {payment.room}</span>
+                        <span className="text-slate-300">|</span>
+                        <span>Due: {payment.dueDate}</span>
+                    </p>
+                    {/* verification Alert */}
+                    {payment.status === 'Verification Pending' && (
+                      <p className="text-xs text-orange-600 font-bold mt-1 flex items-center gap-1 animate-pulse">
+                        <Bell size={10} /> Payment verification required
                       </p>
-                   </div>
-                </div>
-                <div className="text-right w-full md:w-auto flex items-center justify-between md:block border-t border-slate-50 pt-3 md:border-0 md:pt-0">
-                  <div className="md:text-right">
-                      <p className="font-bold text-slate-800">₹{payment.amount.toLocaleString()}</p>
+                    )}
                   </div>
-                  <div className="md:mt-1">
-                      <select 
-                          value={payment.status} 
-                          onChange={(e) => updatePaymentStatus(payment.id, e.target.value as any)}
-                          className={`text-[10px] uppercase font-bold px-2 py-1 rounded border-none outline-none cursor-pointer ${
-                              payment.status === 'Paid' ? 'bg-green-100 text-green-600' : 
-                              payment.status === 'Overdue' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
-                          }`}
-                      >
-                          <option value="Pending">Pending</option>
-                          <option value="Paid">Paid</option>
-                          <option value="Overdue">Overdue</option>
-                      </select>
-                  </div>
+              </div>
+              
+              <div className="text-right w-full md:w-auto flex flex-col items-end gap-2">
+                <div className="flex items-center gap-4 justify-between w-full md:w-auto">
+                    <p className="font-bold text-slate-800">₹{payment.amount.toLocaleString()}</p>
+                    
+                    {/* Status Dropdown */}
+                    <select 
+                        value={payment.status} 
+                        onChange={(e) => updatePaymentStatus(payment.id, e.target.value as any)}
+                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded border-none outline-none cursor-pointer ${
+                            payment.status === 'Paid' ? 'bg-green-100 text-green-600' : 
+                            payment.status === 'Overdue' ? 'bg-red-100 text-red-600' : 
+                            payment.status === 'Verification Pending' ? 'bg-orange-100 text-orange-600' :
+                            'bg-yellow-100 text-yellow-600'
+                        }`}
+                    >
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Overdue">Overdue</option>
+                        <option value="Verification Pending">Verifying</option>
+                    </select>
                 </div>
-             </div>
-           ))}
-         </div>
 
-         {/* Schedule Fee Modal */}
-         {isFeeModalOpen && (
+                {/* VERIFICATION BUTTONS */}
+                {payment.status === 'Verification Pending' && (
+                  <div className="flex gap-2 mt-1">
+                    <button 
+                      onClick={() => updatePaymentStatus(payment.id, 'Pending')}
+                      className="px-3 py-1 text-xs font-medium text-red-600 bg-white border border-red-200 rounded hover:bg-red-50"
+                    >
+                      Reject
+                    </button>
+                    <button 
+                      onClick={() => updatePaymentStatus(payment.id, 'Paid')}
+                      className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 shadow-sm flex items-center gap-1"
+                    >
+                      <CheckCircle size={12} /> Verify
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Modal for creating fees (Copied from previous implementation) */}
+        {isFeeModalOpen && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
                     <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -587,71 +604,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <form onSubmit={handleScheduleFee} className="p-6 space-y-4">
                         <div>
                             <label className="block text-xs font-medium text-slate-700 mb-1">Fee Title</label>
-                            <input 
-                              required 
-                              type="text" 
-                              placeholder="e.g. Hostel Fee - Dec 2025"
-                              className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
-                              value={newFee.title} 
-                              onChange={e => setNewFee({...newFee, title: e.target.value})} 
-                            />
+                            <input required type="text" placeholder="e.g. Hostel Fee" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.title} onChange={e => setNewFee({...newFee, title: e.target.value})} />
                         </div>
-                        
                         <div className="grid grid-cols-2 gap-4">
                            <div>
                               <label className="block text-xs font-medium text-slate-700 mb-1">Amount (₹)</label>
-                              <input 
-                                required 
-                                type="number" 
-                                className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
-                                value={newFee.amount} 
-                                onChange={e => setNewFee({...newFee, amount: e.target.value})} 
-                              />
+                              <input required type="number" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.amount} onChange={e => setNewFee({...newFee, amount: e.target.value})} />
                            </div>
                            <div>
                               <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
-                              <input 
-                                required 
-                                type="date" 
-                                className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" 
-                                value={newFee.dueDate} 
-                                onChange={e => setNewFee({...newFee, dueDate: e.target.value})} 
-                              />
+                              <input required type="date" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500" value={newFee.dueDate} onChange={e => setNewFee({...newFee, dueDate: e.target.value})} />
                            </div>
                         </div>
-
                         <div>
                             <label className="block text-xs font-medium text-slate-700 mb-1">Assign To</label>
-                            <select 
-                              required 
-                              className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500 bg-white"
-                              value={newFee.studentId}
-                              onChange={e => setNewFee({...newFee, studentId: e.target.value})}
-                            >
+                            <select required className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-purple-500 bg-white" value={newFee.studentId} onChange={e => setNewFee({...newFee, studentId: e.target.value})}>
                                 <option value="">Select Student</option>
                                 <option value="ALL" className="font-bold text-purple-600">-- All Students --</option>
-                                {students.map(student => (
-                                  <option key={student.id} value={student.id}>
-                                    {student.name} (Room {student.room})
-                                  </option>
-                                ))}
+                                {students.map(student => (<option key={student.id} value={student.id}>{student.name} (Room {student.room})</option>))}
                             </select>
                         </div>
-
-                        <button 
-                          type="submit" 
-                          disabled={isProcessing}
-                          className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2 flex justify-center items-center gap-2 disabled:opacity-50"
-                        >
-                          {isProcessing ? 'Processing...' : 'Schedule Payment'}
-                        </button>
+                        <button type="submit" disabled={isProcessing} className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 mt-2">{isProcessing ? 'Processing...' : 'Schedule Payment'}</button>
                     </form>
                 </div>
             </div>
-         )}
-      </div>
-    );
-  };
+        )}
+    </div>
+  );
+};
 
   const AnnouncementsList = () => {
      const [showForm, setShowForm] = useState(false);
