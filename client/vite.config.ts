@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
          allowedHosts: [
-      'wolf-documentation-auto-village.trycloudflare.com'
+      'procedure-vegetable-metres-majority.trycloudflare.com'
     ],
         port: 3000,
         host: '0.0.0.0',
