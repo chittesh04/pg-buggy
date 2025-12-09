@@ -12,14 +12,7 @@ export const Header: React.FC = () => {
           Hostel Management System
         </h1>
       </div>
-      <div className="flex gap-3">
-        <button className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-          About
-        </button>
-        <button className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-          Contact
-        </button>
-      </div>
+
     </header>
   );
 };
